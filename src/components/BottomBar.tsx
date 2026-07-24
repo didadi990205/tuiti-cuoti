@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 
-// 底部全局操作栏：返回、前进、分享、主页
+// 底部全局操作栏：返回、前进、分享、首页（图标统一 22x22）
 export default function BottomBar() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -8,16 +8,11 @@ export default function BottomBar() {
   const canGoBack = location.key !== 'default' && window.history.length > 1 && location.pathname !== '/'
 
   const handleBack = () => {
-    if (canGoBack) {
-      navigate(-1)
-    } else {
-      navigate('/library')
-    }
+    if (canGoBack) navigate(-1)
+    else navigate('/library')
   }
 
-  const handleForward = () => {
-    navigate(1)
-  }
+  const handleForward = () => navigate(1)
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -35,20 +30,18 @@ export default function BottomBar() {
     }
   }
 
-  const handleHome = () => {
-    navigate('/library')
-  }
+  const handleHome = () => navigate('/library')
 
   return (
     <div className="bottom-bar">
       <button className="bottom-bar-btn" onClick={handleBack} aria-label="返回">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="19" y1="12" x2="5" y2="12" />
           <polyline points="12 19 5 12 12 5" />
         </svg>
       </button>
       <button className="bottom-bar-btn" onClick={handleForward} aria-label="前进">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="5" y1="12" x2="19" y2="12" />
           <polyline points="12 5 19 12 12 19" />
         </svg>

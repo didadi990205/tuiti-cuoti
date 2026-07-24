@@ -7,47 +7,62 @@ interface Props {
   onCropComplete: (dataUrl: string, thumb: string) => void
 }
 
-// å››å‘è¾¹æ¡†è£å‰ªï¼šæ§åˆ¶ top/bottom/left/right å››æ¡è¾¹è·
+// °Ë°ÑÊÖ + ¿òÄÚÍÏ¶¯ÕûÌå + RAF ĞÔÄÜÓÅ»¯
 export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
-  const [imgRect, setImgRect] = useState({ w: 0, h: 0, left: 0, top: 0 })
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgSize, setImgSize] = useState({ w: 0, h: 0 })
 
-  // è¾¹è·ï¼šç™¾åˆ†æ¯”ï¼ˆ0-1ï¼‰ï¼Œè¡¨ç¤ºä¿ç•™çš„ä¸­é—´åŒºåŸŸ
-  const [top, setTop] = useState(0.05)
-  const [bottom, setBottom] = useState(0.05)
-  const [left, setLeft] = useState(0.05)
-  const [right, setRight] = useState(0.05)
+  // ²Ã¼ô¿òÏà¶ÔÓÚÍ¼Æ¬ÏÔÊ¾ÇøÓò×óÉÏ½ÇµÄ×ø±êºÍ³ß´ç£¨µ¥Î» px£¬Ïà¶ÔÓÚÍ¼Æ¬×ÔÈ»ÏÔÊ¾³ß´ç£©
+  const [crop, setCrop] = useState({ x: 0, y: 0, w: 0, h: 0 })
+  const rafRef = useRef<number | null>(null)
+  const pendingCrop = useRef(crop)
 
-  const [processing, setProcessing] = useState(false)
-  const [dragging, setDragging] = useState<'top' | 'bottom' | 'left' | 'right' | null>(null)
+  // ÍÏ¶¯×´Ì¬
+  const dragRef = useRef<{
+    type: 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+    startX: number
+    startY: number
+    orig: { x: number; y: number; w: number; h: number }
+  } | null>(null)
 
+  // Í¼Æ¬¼ÓÔØºó³õÊ¼»¯²Ã¼ô¿ò£¨¾ÓÖĞ 80%£©
   useEffect(() => {
-    const updateRect = () => {
-      const img = imgRef.current
-      if (!img) return
-      const rect = img.getBoundingClientRect()
-      const containerRect = containerRef.current?.getBoundingClientRect()
-      setImgRect({
-        w: rect.width,
-        h: rect.height,
-        left: rect.left - (containerRect?.left ?? 0),
-        top: rect.top - (containerRect?.top ?? 0),
-      })
-    }
+    if (!imgLoaded || !imgRef.current) return
     const img = imgRef.current
-    if (img?.complete) updateRect()
-    img?.addEventListener('load', updateRect)
-    window.addEventListener('resize', updateRect)
-    return () => {
-      img?.removeEventListener('load', updateRect)
-      window.removeEventListener('resize', updateRect)
-    }
+    const w = img.naturalWidth
+    const h = img.naturalHeight
+    setImgSize({ w, h })
+    setCrop({
+      x: w * 0.1,
+      y: h * 0.1,
+      w: w * 0.8,
+      h: h * 0.8,
+    })
+  }, [imgLoaded])
+
+  // RAF ÅúÁ¿¸üĞÂ£¬½µµÍÍÏ¶¯äÖÈ¾ÑÓ³Ù
+  const flushCrop = useCallback(() => {
+    rafRef.current = null
+    setCrop(pendingCrop.current)
   }, [])
 
-  const getPos = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const containerRect = containerRef.current?.getBoundingClientRect()
-    if (!containerRect) return { x: 0, y: 0 }
+  const scheduleUpdate = useCallback((next: typeof crop) => {
+    pendingCrop.current = next
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(flushCrop)
+    }
+  }, [flushCrop])
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+  }, [])
+
+  const getEventPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const img = imgRef.current
+    if (!img) return { x: 0, y: 0 }
+    const rect = img.getBoundingClientRect()
     let clientX: number, clientY: number
     if ('touches' in e) {
       const t = e.touches[0] || e.changedTouches[0]
@@ -57,167 +72,182 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
       clientX = e.clientX
       clientY = e.clientY
     }
+    // ×ª»»ÎªÍ¼Æ¬×ÔÈ»×ø±ê
+    const scaleX = img.naturalWidth / rect.width
+    const scaleY = img.naturalHeight / rect.height
     return {
-      x: clientX - containerRect.left - imgRect.left,
-      y: clientY - containerRect.top - imgRect.top,
-    }
-  }, [imgRect])
-
-  const handleStart = (e: React.MouseEvent | React.TouchEvent, edge: 'top' | 'bottom' | 'left' | 'right') => {
-    e.preventDefault()
-    setDragging(edge)
-  }
-
-  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!dragging || !imgRect.w || !imgRect.h) return
-    e.preventDefault()
-    const pos = getPos(e)
-    if (dragging === 'top') {
-      const pct = Math.max(0, Math.min(1 - bottom - 0.1, pos.y / imgRect.h))
-      setTop(pct)
-    } else if (dragging === 'bottom') {
-      const pct = Math.max(0, Math.min(1 - top - 0.1, 1 - pos.y / imgRect.h))
-      setBottom(pct)
-    } else if (dragging === 'left') {
-      const pct = Math.max(0, Math.min(1 - right - 0.1, pos.x / imgRect.w))
-      setLeft(pct)
-    } else if (dragging === 'right') {
-      const pct = Math.max(0, Math.min(1 - left - 0.1, 1 - pos.x / imgRect.w))
-      setRight(pct)
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
     }
   }
 
-  const handleEnd = () => setDragging(null)
+  const startDrag = (
+    e: React.MouseEvent | React.TouchEvent,
+    type: 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const pos = getEventPos(e)
+    dragRef.current = {
+      type,
+      startX: pos.x,
+      startY: pos.y,
+      orig: { ...pendingCrop.current },
+    }
+  }
 
-  // è®¡ç®—è£å‰ªåŒºåŸŸï¼ˆè€ƒè™‘å®‰å…¨è¾¹è·ï¼‰
+  const onMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const drag = dragRef.current
+    if (!drag) return
+    e.preventDefault()
+    const pos = getEventPos(e)
+    const dx = pos.x - drag.startX
+    const dy = pos.y - drag.startY
+    const o = drag.orig
+    const MIN = 40 // ×îĞ¡²Ã¼ô³ß´ç
+
+    let { x, y, w, h } = o
+
+    if (drag.type === 'move') {
+      // ÕûÌåÒÆ¶¯£¬ÏŞÖÆÔÚÍ¼Æ¬·¶Î§ÄÚ
+      x = Math.max(0, Math.min(imgSize.w - o.w, o.x + dx))
+      y = Math.max(0, Math.min(imgSize.h - o.h, o.y + dy))
+    } else {
+      // °Ë°ÑÊÖµ÷Õû
+      if (drag.type.includes('w')) {
+        const newX = Math.max(0, Math.min(o.x + o.w - MIN, o.x + dx))
+        w = o.w - (newX - o.x)
+        x = newX
+      }
+      if (drag.type.includes('e')) {
+        w = Math.max(MIN, Math.min(imgSize.w - o.x, o.w + dx))
+      }
+      if (drag.type.includes('n')) {
+        const newY = Math.max(0, Math.min(o.y + o.h - MIN, o.y + dy))
+        h = o.h - (newY - o.y)
+        y = newY
+      }
+      if (drag.type.includes('s')) {
+        h = Math.max(MIN, Math.min(imgSize.h - o.y, o.h + dy))
+      }
+    }
+
+    scheduleUpdate({ x, y, w, h })
+  }
+
+  const endDrag = () => {
+    dragRef.current = null
+  }
+
   const handleConfirm = async () => {
-    if (!imgRef.current) return
+    if (!imgRef.current || crop.w < 10 || crop.h < 10) return
     const img = imgRef.current
     setProcessing(true)
     try {
-      // æ˜¾ç¤ºè¾¹è· -> å®é™…è£å‰ªåæ ‡
-      const displayX = imgRect.left + left * imgRect.w
-      const displayY = imgRect.top + top * imgRect.h
-      const displayW = imgRect.w - (left + right) * imgRect.w
-      const displayH = imgRect.h - (top + bottom) * imgRect.h
-
+      // Ö±½ÓÓÃÍ¼Æ¬×ÔÈ»×ø±ê²Ã¼ô
       const { dataUrl, thumb } = await cropImage(
         imageSrc,
-        displayX,
-        displayY,
-        displayW,
-        displayH,
-        imgRect.w,
-        imgRect.h,
-        0.02 // å¾®å°å®‰å…¨è¾¹è·
+        crop.x,
+        crop.y,
+        crop.w,
+        crop.h,
+        imgSize.w,
+        imgSize.h,
+        0.02
       )
-      if (!dataUrl || dataUrl.length < 100) throw new Error('è£å‰ªå¤±è´¥')
+      if (!dataUrl || dataUrl.length < 100) throw new Error('²Ã¼ôÊ§°Ü')
       onCropComplete(dataUrl, thumb)
     } catch (err) {
       console.error(err)
-      alert('è£å‰ªå¤±è´¥ï¼Œè¯·é‡è¯•')
+      alert('²Ã¼ôÊ§°Ü£¬ÇëÖØÊÔ')
     } finally {
       setProcessing(false)
     }
   }
 
-  // é‡æ–°è£å‰ªï¼šé‡ç½®ä¸ºé»˜è®¤è¾¹è·
   const handleRecrop = () => {
-    setTop(0.05)
-    setBottom(0.05)
-    setLeft(0.05)
-    setRight(0.05)
+    setCrop({
+      x: imgSize.w * 0.1,
+      y: imgSize.h * 0.1,
+      w: imgSize.w * 0.8,
+      h: imgSize.h * 0.8,
+    })
+    // ¹ö¶¯»Ø×óÉÏ
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = 0
+      scrollRef.current.scrollTop = 0
+    }
   }
 
-  const cropX = imgRect.left + left * imgRect.w
-  const cropY = imgRect.top + top * imgRect.h
-  const cropW = imgRect.w - (left + right) * imgRect.w
-  const cropH = imgRect.h - (top + bottom) * imgRect.h
+  const [processing, setProcessing] = useState(false)
 
   return (
     <div className="crop-modal-overlay" onClick={onCancel}>
       <div className="crop-modal" onClick={e => e.stopPropagation()}>
         <div className="crop-modal-header">
-          <h3>é‡æ–°è£åˆ‡</h3>
-          <button className="crop-close-btn" onClick={onCancel} aria-label="å–æ¶ˆ">Ã—</button>
+          <h3>²Ã¼ôÍ¼Æ¬</h3>
+          <button className="crop-close-btn" onClick={onCancel} aria-label="È¡Ïû">¡Á</button>
         </div>
         <div className="crop-modal-body">
-          <p className="crop-tip">æ‹–åŠ¨å›¾ç‰‡å››å‘¨è¾¹çº¿ï¼Œè°ƒæ•´ä¿ç•™åŒºåŸŸ</p>
-          <div
-            className="crop-canvas"
-            ref={containerRef}
-            onMouseMove={handleMove}
-            onMouseUp={handleEnd}
-            onMouseLeave={handleEnd}
-            onTouchMove={handleMove}
-            onTouchEnd={handleEnd}
-          >
-            <img
-              ref={imgRef}
-              src={imageSrc}
-              alt="å¾…è£å‰ª"
-              className="crop-img"
-              draggable={false}
-            />
-            {/* é®ç½© */}
-            <div className="crop-mask" style={{
-              left: 0, top: 0, width: imgRect.left + imgRect.w, height: imgRect.top + cropY,
-            }} />
-            <div className="crop-mask" style={{
-              left: imgRect.left + cropX + cropW, top: 0,
-              width: imgRect.w - cropX - cropW + (imgRect.w - imgRect.w), height: imgRect.top + imgRect.h,
-            }} />
-            <div className="crop-mask" style={{
-              left: imgRect.left + cropX, top: 0, width: cropW, height: imgRect.top + cropY,
-            }} />
-            <div className="crop-mask" style={{
-              left: imgRect.left + cropX, top: imgRect.top + cropY + cropH,
-              width: cropW, height: imgRect.h - cropY - cropH,
-            }} />
+          <p className="crop-tip">ÍÏ¶¯ËÄ½Ç/ËÄ±ßµ÷ÕûÇøÓò£¬°´×¡¿òÄÚ¿ÉÕûÌåÒÆ¶¯</p>
+          <div className="crop-scroll" ref={scrollRef}>
+            <div
+              className="crop-img-wrap"
+              onMouseMove={onMove}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
+              onTouchMove={onMove}
+              onTouchEnd={endDrag}
+            >
+              <img
+                ref={imgRef}
+                src={imageSrc}
+                alt="´ı²Ã¼ô"
+                className="crop-img"
+                draggable={false}
+                onLoad={() => setImgLoaded(true)}
+              />
+              {imgLoaded && crop.w > 0 && (
+                <>
+                  {/* ËÄÖÜÕÚÕÖ */}
+                  <div className="crop-mask" style={{ left: 0, top: 0, width: crop.x, height: imgSize.h }} />
+                  <div className="crop-mask" style={{ left: crop.x + crop.w, top: 0, width: imgSize.w - crop.x - crop.w, height: imgSize.h }} />
+                  <div className="crop-mask" style={{ left: crop.x, top: 0, width: crop.w, height: crop.y }} />
+                  <div className="crop-mask" style={{ left: crop.x, top: crop.y + crop.h, width: crop.w, height: imgSize.h - crop.y - crop.h }} />
 
-            {/* ä¿ç•™åŒºåŸŸè¾¹æ¡† */}
-            <div
-              className="crop-frame"
-              style={{
-                left: cropX,
-                top: cropY,
-                width: cropW,
-                height: cropH,
-              }}
-            />
+                  {/* ²Ã¼ô¿ò */}
+                  <div
+                    className="crop-frame"
+                    style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h }}
+                    onMouseDown={e => startDrag(e, 'move')}
+                    onTouchStart={e => startDrag(e, 'move')}
+                  >
+                    {/* Íø¸ñ¸¨ÖúÏß */}
+                    <div className="crop-grid-h" style={{ top: '33.33%' }} />
+                    <div className="crop-grid-h" style={{ top: '66.66%' }} />
+                    <div className="crop-grid-v" style={{ left: '33.33%' }} />
+                    <div className="crop-grid-v" style={{ left: '66.66%' }} />
 
-            {/* å››æ¡å¯æ‹–åŠ¨è¾¹çº¿ */}
-            <div
-              className="crop-edge crop-edge-top"
-              style={{ left: cropX, top: cropY - 2, width: cropW }}
-              onMouseDown={e => handleStart(e, 'top')}
-              onTouchStart={e => handleStart(e, 'top')}
-            />
-            <div
-              className="crop-edge crop-edge-bottom"
-              style={{ left: cropX, top: cropY + cropH - 2, width: cropW }}
-              onMouseDown={e => handleStart(e, 'bottom')}
-              onTouchStart={e => handleStart(e, 'bottom')}
-            />
-            <div
-              className="crop-edge crop-edge-left"
-              style={{ left: cropX - 2, top: cropY, height: cropH }}
-              onMouseDown={e => handleStart(e, 'left')}
-              onTouchStart={e => handleStart(e, 'left')}
-            />
-            <div
-              className="crop-edge crop-edge-right"
-              style={{ left: cropX + cropW - 2, top: cropY, height: cropH }}
-              onMouseDown={e => handleStart(e, 'right')}
-              onTouchStart={e => handleStart(e, 'right')}
-            />
+                    {/* °Ë°ÑÊÖ */}
+                    <div className="crop-handle h-nw" onMouseDown={e => startDrag(e, 'nw')} onTouchStart={e => startDrag(e, 'nw')} />
+                    <div className="crop-handle h-n" onMouseDown={e => startDrag(e, 'n')} onTouchStart={e => startDrag(e, 'n')} />
+                    <div className="crop-handle h-ne" onMouseDown={e => startDrag(e, 'ne')} onTouchStart={e => startDrag(e, 'ne')} />
+                    <div className="crop-handle h-e" onMouseDown={e => startDrag(e, 'e')} onTouchStart={e => startDrag(e, 'e')} />
+                    <div className="crop-handle h-se" onMouseDown={e => startDrag(e, 'se')} onTouchStart={e => startDrag(e, 'se')} />
+                    <div className="crop-handle h-s" onMouseDown={e => startDrag(e, 's')} onTouchStart={e => startDrag(e, 's')} />
+                    <div className="crop-handle h-sw" onMouseDown={e => startDrag(e, 'sw')} onTouchStart={e => startDrag(e, 'sw')} />
+                    <div className="crop-handle h-w" onMouseDown={e => startDrag(e, 'w')} onTouchStart={e => startDrag(e, 'w')} />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="crop-modal-footer">
-          <button className="btn btn-ghost" onClick={onCancel} disabled={processing}>å–æ¶ˆ</button>
-          <button className="btn btn-ghost" onClick={handleRecrop} disabled={processing}>é‡æ–°è£å‰ª</button>
-          <button className="btn btn-primary" onClick={handleConfirm} disabled={processing}>
-            {processing ? 'å¤„ç†ä¸­...' : 'ç¡®è®¤è£å‰ª'}
+          <button className="btn btn-ghost" onClick={onCancel} disabled={processing}>È¡Ïû</button>
+          <button className="btn btn-ghost" onClick={handleRecrop} disabled={processing}>ÖØĞÂ²Ã¼ô</button>
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={processing || !imgLoaded}>
+            {processing ? '´¦ÀíÖĞ...' : 'È·ÈÏ²Ã¼ô'}
           </button>
         </div>
       </div>

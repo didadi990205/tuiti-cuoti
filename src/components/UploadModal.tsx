@@ -115,7 +115,7 @@ export default function UploadModal({ open, onClose }: Props) {
     { value: 'pending', label: '未复盘', count: 0 },
     { value: 'once', label: '1次复盘', count: 1 },
     { value: 'many', label: '多次复盘', count: 2 },
-    { value: 'mastered', label: '已完全掌握', count: 2 },
+    { value: 'mastered', label: '已掌握', count: 2 },
   ]
 
   return (
@@ -139,7 +139,7 @@ export default function UploadModal({ open, onClose }: Props) {
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
                 <div className="upload-dropzone-text">点击上传题目截图</div>
-                <div className="upload-dropzone-hint">支持 JPG / PNG</div>
+                <div className="upload-dropzone-hint">支持 JPG / PNG，可裁剪后保存</div>
               </div>
             ) : (
               <div className="upload-preview">
@@ -155,26 +155,16 @@ export default function UploadModal({ open, onClose }: Props) {
 
           <section className="upload-section">
             <div className="upload-section-title">选择分类</div>
-            {data.categories.length === 0 ? (
-              <div className="upload-empty-cat">暂无分类，请先在设置中创建分类</div>
-            ) : (
-              <CategoryTree
-                categories={data.categories}
-                selected={categoryIds}
-                onToggle={(id) => {
-                  setCategoryIds(prev =>
-                    prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-                  )
-                }}
-              />
-            )}
-            <button className="upload-add-cat-btn" onClick={() => navigate('/settings')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              去设置新建分类
-            </button>
+            <CategoryTree
+              categories={data.categories}
+              selected={categoryIds}
+              onToggle={(id) => {
+                setCategoryIds(prev =>
+                  prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+                )
+              }}
+              allowAdd
+            />
           </section>
 
           <section className="upload-section">
@@ -231,9 +221,16 @@ export default function UploadModal({ open, onClose }: Props) {
           </section>
         </div>
 
-        <div className="upload-modal-footer">
-          <button className="btn btn-ghost" onClick={handleClose} disabled={processing}>取消</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={processing || !finalImage}>
+        {/* 底部固定：返回 + 保存错题 */}
+        <div className="upload-modal-footer-fixed">
+          <button className="btn btn-ghost upload-footer-back" onClick={handleClose} disabled={processing}>
+            返回
+          </button>
+          <button
+            className="btn btn-primary upload-footer-save"
+            onClick={handleSave}
+            disabled={processing || !finalImage}
+          >
             {processing ? '保存中...' : '保存错题'}
           </button>
         </div>

@@ -98,14 +98,6 @@ export default function LibraryPage() {
             {activeFilterCount > 0 && <span className="filter-count-hint"> · 筛选 {activeFilterCount} 项</span>}
           </span>
         </div>
-
-        <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          上传
-        </button>
       </div>
 
       {/* 搜索框 */}
