@@ -1,0 +1,220 @@
+/* ===== 全局样式：纯白底色 + 主蓝色强调 + 圆角统一 ===== */
+:root {
+  --primary: #1677ff;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+  --primary-bg: #e6f4ff;
+  --primary-border: #91caff;
+
+  --text-1: #1f1f1f;
+  --text-2: #595959;
+  --text-3: #8c8c8c;
+  --text-4: #bfbfbf;
+
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-hover: #f5f5f5;
+  --border: #f0f0f0;
+  --border-strong: #d9d9d9;
+
+  --success: #52c41a;
+  --warning: #faad14;
+  --danger: #ff4d4f;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 6px 24px rgba(0,0,0,0.1);
+
+  --nav-width: 220px;
+  --header-height: 56px;
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: var(--text-1);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-1);
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--primary-hover); }
+
+/* ===== 通用按钮 ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+  border: 1px solid transparent;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--primary-active);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-2);
+  border-color: var(--border-strong);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-bg);
+}
+.btn-text {
+  background: transparent;
+  color: var(--text-2);
+  padding: 6px 10px;
+}
+.btn-text:hover {
+  color: var(--primary);
+  background: var(--primary-bg);
+}
+.btn-danger {
+  color: var(--danger);
+  background: transparent;
+}
+.btn-danger:hover {
+  background: #fff1f0;
+}
+.btn-block {
+  width: 100%;
+}
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* ===== 标签按钮（难度/复盘状态通用） ===== */
+.tag-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+.tag-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.tag-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ===== 滚动条 ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+
+/* ===== 输入框 ===== */
+.input, .textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+.input:focus, .textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+.textarea {
+  resize: none;
+  line-height: 1.6;
+}
+
+/* ===== 抽屉/弹窗动画 ===== */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* ===== App根布局 ===== */
+.app {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}

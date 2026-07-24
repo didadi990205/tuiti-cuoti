@@ -1,0 +1,130 @@
+/* ===== PC布局 ===== */
+.sidebar {
+  width: var(--nav-width);
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-brand-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.2;
+}
+.sidebar-brand-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.sidebar-link:hover {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
+.sidebar-link.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+}
+.sidebar-link-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  padding: 16px 20px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+}
+.sidebar-stat {
+  background: var(--primary-bg);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  text-align: center;
+}
+.sidebar-stat-num {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+.sidebar-stat-label {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+/* 主内容区 */
+.main-content {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg);
+}
+
+/* 各页面通用容器 */
+.library-page, .stats-page, .notes-page, .settings-page, .edit-page {
+  min-height: 100%;
+  padding: 24px 32px;
+}
+.edit-page {
+  padding-bottom: 100px; /* 给悬浮保存栏留空间 */
+}
+
+/* 通用页面标题 */
+.library-title, .stats-title, .notes-title, .settings-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0;
+}

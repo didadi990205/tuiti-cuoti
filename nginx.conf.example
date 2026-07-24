@@ -1,0 +1,29 @@
+# nginx 配置示例（用于自有服务器部署 history 路由模式）
+# 将此 server 块加入 nginx 配置，重启 nginx 即可
+
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /var/www/tuiti-cuoti;  # 修改为你的 dist 部署目录
+    index index.html;
+
+    # gzip 压缩
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # 静态资源长缓存（带 hash 文件名）
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # history 路由模式：所有未匹配文件的路由回退到 index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 404 兜底（部分托管平台需要显式 404.html）
+    error_page 404 /404.html;
+}
