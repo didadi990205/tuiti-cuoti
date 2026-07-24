@@ -1,0 +1,8 @@
+# Cloudflare Pages 构建配置
+# 部署方式：连接 GitHub 仓库 didadi990205/tuiti-cuoti
+# 构建命令：pnpm install && pnpm build
+# 构建输出目录：dist
+# Node 版本：18
+
+name = "tuiti-cuoti"
+pages_build_output_dir = "dist"
