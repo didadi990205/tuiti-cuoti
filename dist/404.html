@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>图推错题工作台</title>
+  <!--
+    404.html - 用于静态托管平台（GitHub Pages / Gitee Pages / Netlify）
+    当用户访问不存在的子路径（如 /library 刷新）时，托管平台会返回此404页面。
+    此脚本将路径信息保存到 sessionStorage，并重定向到 index.html，
+    然后 index.html 中的重定向脚本会恢复原路径并交给 React Router 处理。
+    这是 history 路由模式在静态托管下的标准兜底方案（GitHub Pages 官方推荐）。
+  -->
+  <script>
+    (function () {
+      // 保存原始路径，供 index.html 恢复
+      sessionStorage.setItem('redirect-path', window.location.pathname + window.location.search + window.location.hash);
+      // 重定向到根 index.html
+      var basePath = window.location.pathname.split('/').slice(0, -1).join('/') || '/';
+      // 处理项目页子路径（如 username.gitee.io/tuiti-cuoti/library → username.gitee.io/tuiti-cuoti/）
+      window.location.replace(basePath + '/');
+    })();
+  </script>
+  <meta http-equiv="refresh" content="0; url=./">
+</head>
+<body>
+  <p>正在跳转，请稍候…如未自动跳转，<a href="./">点击这里</a>。</p>
+</body>
+</html>

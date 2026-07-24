@@ -1,7 +1,5 @@
 # 构建忽略
 node_modules
-dist
-dist-ssr
 *.local
 
 # 编辑器
