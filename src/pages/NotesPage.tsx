@@ -2,18 +2,17 @@ import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { store } from '@/store'
 import { useStore } from '@/hooks/useStore'
-import { useIsMobile } from '@/hooks/useMediaQuery'
 import { compressImage, readFileAsDataUrl } from '@/utils/image'
+import CategoryTree from '@/components/CategoryTree'
 import type { Note } from '@/types'
 import './NotesPage.css'
 
 export default function NotesPage() {
   const data = useStore()
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
   const [editing, setEditing] = useState<Note | null>(null)
   const [showEditor, setShowEditor] = useState(false)
-  const [selectedCats, setSelectedCats] = useState<string[]>([]) // 笔记分类筛选
+  const [selectedCats, setSelectedCats] = useState<string[]>([])
   const [keyword, setKeyword] = useState('')
 
   // 新建笔记表单状态
@@ -112,11 +111,14 @@ export default function NotesPage() {
     setDirty(true)
   }
 
-  // 点击分类：跳转题库并筛选该分类（移动端会自动关闭抽屉——由路由变化触发）
+  // 点击分类：跳转题库并筛选该分类
   const handleJumpToLibrary = (catId: string) => {
     navigate(`/library`)
-    // 通过 sessionStorage 传递筛选状态（题库页读取）
-    sessionStorage.setItem('pending-filter', catId)
+    sessionStorage.setItem('pending-filter', JSON.stringify([catId]))
+  }
+
+  const toggleSelectedCat = (id: string) => {
+    setSelectedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
   }
 
   return (
@@ -165,15 +167,11 @@ export default function NotesPage() {
         />
         {sortedCategories.length > 0 && (
           <div className="notes-filter-chips">
-            {sortedCategories.map(cat => (
-              <button
-                key={cat.id}
-                className={`notes-filter-chip${selectedCats.includes(cat.id) ? ' active' : ''}`}
-                onClick={() => setSelectedCats(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
-              >
-                {cat.name}
-              </button>
-            ))}
+            <CategoryTree
+              categories={data.categories}
+              selected={selectedCats}
+              onToggle={toggleSelectedCat}
+            />
           </div>
         )}
       </div>
@@ -275,21 +273,10 @@ export default function NotesPage() {
               </div>
 
               {/* 分类 */}
-              {sortedCategories.length > 0 && (
+              {data.categories.length > 0 && (
                 <div className="note-editor-cats">
                   <div className="note-editor-label">归属分类</div>
-                  <div className="note-editor-cat-chips">
-                    {sortedCategories.map(cat => (
-                      <label key={cat.id} className={`upload-category-chip${noteCats.includes(cat.id) ? ' checked' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={noteCats.includes(cat.id)}
-                          onChange={() => toggleNoteCat(cat.id)}
-                        />
-                        <span>{cat.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <CategoryTree categories={data.categories} selected={noteCats} onToggle={toggleNoteCat} />
                 </div>
               )}
             </div>

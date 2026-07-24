@@ -1,53 +1,67 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/hooks/useStore'
 import UploadModal from '@/components/UploadModal'
-import FilterDrawer from '@/components/FilterDrawer'
+import CategoryTree from '@/components/CategoryTree'
+import { buildCategoryTree, formatRelativeTime } from '@/utils/category'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import './LibraryPage.css'
+import type { Difficulty, ReviewStatus } from '@/types'
 
-const STATUS_LABEL = { pending: '未复盘', reviewed: '已复盘', mastered: '已掌握' }
-const STATUS_COLOR = { pending: 'var(--text-3)', reviewed: 'var(--warning)', mastered: 'var(--success)' }
-const DIFFICULTY_LABEL = { easy: '简单', medium: '中等', hard: '困难' }
-const DIFFICULTY_COLOR = { easy: 'var(--success)', medium: 'var(--warning)', hard: 'var(--danger)' }
+const STATUS_LABEL: Record<ReviewStatus, string> = {
+  pending: '未复盘',
+  once: '1次复盘',
+  many: '多次复盘',
+  mastered: '已掌握',
+}
+
+const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: '简单', medium: '中等', hard: '困难' }
+
+const DIFFICULTY_COLOR: Record<Difficulty, string> = {
+  easy: '#52c41a',
+  medium: '#faad14',
+  hard: '#f5222d',
+}
 
 export default function LibraryPage() {
   const data = useStore()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [keyword, setKeyword] = useState(searchParams.get('q') || '')
+  const [keyword, setKeyword] = useState('')
   const [selectedCats, setSelectedCats] = useState<string[]>([])
+  const [difficulty, setDifficulty] = useState<Difficulty | 'all'>('all')
+  const [reviewStatus, setReviewStatus] = useState<ReviewStatus | 'all'>('all')
   const [showUpload, setShowUpload] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
 
-  // 同步URL搜索参数
-  useEffect(() => {
-    setKeyword(searchParams.get('q') || '')
-  }, [searchParams])
-
-  // 知识点页点击分类跳转过来时，自动应用筛选（一次性）
+  // 从 sessionStorage 读取抽屉或知识点跳转的筛选
   useEffect(() => {
     const pending = sessionStorage.getItem('pending-filter')
     if (pending) {
+      try {
+        const parsed = JSON.parse(pending)
+        if (Array.isArray(parsed)) setSelectedCats(parsed)
+        else setSelectedCats([parsed])
+      } catch {
+        setSelectedCats([pending])
+      }
       sessionStorage.removeItem('pending-filter')
-      setSelectedCats([pending])
+    }
+    const search = sessionStorage.getItem('pending-search')
+    if (search) {
+      setKeyword(search)
+      sessionStorage.removeItem('pending-search')
     }
   }, [])
 
-  const sortedCategories = useMemo(
-    () => [...data.categories].sort((a, b) => a.order - b.order),
-    [data.categories]
-  )
-
-  // 筛选+搜索
   const filteredQuestions = useMemo(() => {
     const q = keyword.trim().toLowerCase()
     return data.questions.filter(question => {
       if (selectedCats.length > 0) {
         if (!selectedCats.some(id => question.categoryIds.includes(id))) return false
       }
+      if (difficulty !== 'all' && question.difficulty !== difficulty) return false
+      if (reviewStatus !== 'all' && question.reviewStatus !== reviewStatus) return false
       if (q) {
         const text = (question.remark || '').toLowerCase()
         const catNames = question.categoryIds
@@ -58,80 +72,99 @@ export default function LibraryPage() {
       }
       return true
     })
-  }, [data.questions, data.categories, keyword, selectedCats])
+  }, [data.questions, data.categories, keyword, selectedCats, difficulty, reviewStatus])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSearchParams(keyword ? { q: keyword } : {})
+  const tree = buildCategoryTree(data.categories)
+  const activeFilterCount = selectedCats.length + (difficulty !== 'all' ? 1 : 0) + (reviewStatus !== 'all' ? 1 : 0)
+
+  const resetFilters = () => {
+    setKeyword('')
+    setSelectedCats([])
+    setDifficulty('all')
+    setReviewStatus('all')
   }
 
-  const handleClearFilter = () => setSelectedCats([])
+  const toggleCat = (id: string) => {
+    setSelectedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
+  }
 
   return (
     <div className="library-page">
       <div className="library-header">
         <div className="library-title-row">
           <h1 className="library-title">错题题库</h1>
-          <span className="library-count">共 {filteredQuestions.length} 题</span>
+          <span className="library-count">
+            共 {filteredQuestions.length} 题
+            {activeFilterCount > 0 && <span className="filter-count-hint"> · 筛选 {activeFilterCount} 项</span>}
+          </span>
         </div>
 
-        {!isMobile && (
-          <form className="library-search" onSubmit={handleSearch}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="搜索备注或分类名..."
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
-            />
-            {keyword && (
-              <button type="button" className="library-search-clear" onClick={() => { setKeyword(''); setSearchParams({}) }}>×</button>
-            )}
-          </form>
-        )}
-
-        <div className="library-actions">
-          <button
-            className="btn btn-ghost"
-            onClick={() => setShowFilter(true)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
-            筛选{selectedCats.length > 0 && <span className="filter-badge">{selectedCats.length}</span>}
-          </button>
-          <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            上传新题
-          </button>
-        </div>
+        <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          上传
+        </button>
       </div>
 
-      {/* 已选筛选标签 */}
-      {selectedCats.length > 0 && (
+      {/* 搜索框 */}
+      <div className="library-search-wrap">
+        <div className="library-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            placeholder="搜索错题备注..."
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+          />
+          {keyword && (
+            <button className="library-search-clear" onClick={() => setKeyword('')}>×</button>
+          )}
+        </div>
+        <button className="btn btn-ghost filter-btn" onClick={() => setShowFilter(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          筛选
+          {activeFilterCount > 0 && <span className="filter-badge">{activeFilterCount}</span>}
+        </button>
+      </div>
+
+      {/* 已激活筛选标签 */}
+      {activeFilterCount > 0 && (
         <div className="library-active-filters">
-          <span className="library-active-label">已筛选：</span>
           {selectedCats.map(id => {
-            const cat = sortedCategories.find(c => c.id === id)
+            const cat = data.categories.find(c => c.id === id)
             if (!cat) return null
             return (
               <span key={id} className="library-active-tag">
+                <span className="tag-dot" style={{ background: cat.color }} />
                 {cat.name}
-                <button onClick={() => setSelectedCats(selectedCats.filter(c => c !== id))}>×</button>
+                <button onClick={() => setSelectedCats(prev => prev.filter(c => c !== id))}>×</button>
               </span>
             )
           })}
-          <button className="btn btn-text btn-sm" onClick={handleClearFilter}>清除全部</button>
+          {difficulty !== 'all' && (
+            <span className="library-active-tag">
+              难度：{DIFFICULTY_LABEL[difficulty]}
+              <button onClick={() => setDifficulty('all')}>×</button>
+            </span>
+          )}
+          {reviewStatus !== 'all' && (
+            <span className="library-active-tag">
+              {STATUS_LABEL[reviewStatus]}
+              <button onClick={() => setReviewStatus('all')}>×</button>
+            </span>
+          )}
+          <button className="btn btn-text btn-sm" onClick={resetFilters}>清除全部</button>
         </div>
       )}
 
-      {/* 错题列表 */}
+      {/* 列表 */}
       {filteredQuestions.length === 0 ? (
         <div className="library-empty">
           <div className="library-empty-icon">
@@ -140,59 +173,116 @@ export default function LibraryPage() {
               <path d="M3 10h18M9 4v16" />
             </svg>
           </div>
-          <div className="library-empty-title">暂无错题</div>
-          <div className="library-empty-hint">上传题目开始整理图推错题</div>
-          <button className="btn btn-primary btn-lg" onClick={() => setShowUpload(true)}>上传第一道题</button>
+          <div className="library-empty-title">{activeFilterCount > 0 ? '无筛选结果' : '暂无错题'}</div>
+          <div className="library-empty-hint">
+            {activeFilterCount > 0 ? '换个筛选条件试试' : '上传题目开始整理错题'}
+          </div>
+          <button className="btn btn-primary btn-lg" onClick={() => activeFilterCount > 0 ? resetFilters() : setShowUpload(true)}>
+            {activeFilterCount > 0 ? '清除筛选' : '上传第一道题'}
+          </button>
         </div>
       ) : (
-        <div className="library-grid">
-          {filteredQuestions.map(q => {
-            const cats = q.categoryIds
-              .map(id => data.categories.find(c => c.id === id))
-              .filter(Boolean)
-            return (
-              <div
-                key={q.id}
-                className="question-card"
-                onClick={() => navigate(`/edit/${q.id}`)}
-              >
-                <div className="question-card-img">
+        <div className="library-list">
+          {filteredQuestions.map(q => (
+            <div key={q.id} className="question-card" onClick={() => navigate(`/edit/${q.id}`)}>
+              <div className="question-card-main">
+                <div className="question-card-thumb">
                   <img src={q.imageThumb || q.image} alt="错题" loading="lazy" />
-                  <div className="question-card-badges">
+                </div>
+                <div className="question-card-info">
+                  <div className="question-card-meta">
                     {q.correctOption && (
-                      <span className="q-badge q-badge-option">答案 {q.correctOption}</span>
+                      <span className="q-answer">答案 {q.correctOption}</span>
                     )}
-                    <span className="q-badge" style={{ background: 'rgba(255,255,255,0.9)', color: DIFFICULTY_COLOR[q.difficulty] }}>
-                      {DIFFICULTY_LABEL[q.difficulty]}
-                    </span>
-                    <span className="q-badge" style={{ background: 'rgba(255,255,255,0.9)', color: STATUS_COLOR[q.reviewStatus] }}>
+                    <span className="q-status" style={{
+                      color: q.reviewStatus === 'mastered' ? '#52c41a' : q.reviewStatus === 'pending' ? '#8c8c8c' : '#1677ff',
+                      background: q.reviewStatus === 'mastered' ? '#f6ffed' : q.reviewStatus === 'pending' ? '#f5f5f5' : '#e6f4ff',
+                    }}>
                       {STATUS_LABEL[q.reviewStatus]}
                     </span>
+                    <span className="q-difficulty" style={{ color: DIFFICULTY_COLOR[q.difficulty], background: hexToRgba(DIFFICULTY_COLOR[q.difficulty], 0.1) }}>
+                      {DIFFICULTY_LABEL[q.difficulty]}
+                    </span>
+                    <span className="q-time">{formatRelativeTime(q.createdAt)}</span>
+                  </div>
+                  <div className="question-card-title">
+                    {q.remark || '暂无备注'}
+                  </div>
+                  <div className="question-card-cats">
+                    {q.categoryIds.map(id => {
+                      const cat = data.categories.find(c => c.id === id)
+                      if (!cat) return null
+                      return (
+                        <span key={id} className="q-cat" style={{ color: cat.color, background: hexToRgba(cat.color, 0.1) }}>
+                          <span className="q-cat-dot" style={{ background: cat.color }} />
+                          {cat.name}
+                        </span>
+                      )
+                    })}
                   </div>
                 </div>
-                {cats.length > 0 && (
-                  <div className="question-card-cats">
-                    {cats.map(c => (
-                      <span key={c!.id} className="q-cat">{c!.name}</span>
-                    ))}
-                  </div>
-                )}
-                {q.remark && (
-                  <div className="question-card-remark">{q.remark}</div>
-                )}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       )}
 
       <UploadModal open={showUpload} onClose={() => setShowUpload(false)} />
-      <FilterDrawer
-        open={showFilter}
-        onClose={() => setShowFilter(false)}
-        selected={selectedCats}
-        onChange={setSelectedCats}
-      />
+
+      {/* 筛选抽屉 */}
+      {showFilter && (
+        <div className="filter-overlay" onClick={() => setShowFilter(false)}>
+          <aside className="filter-drawer" onClick={e => e.stopPropagation()}>
+            <div className="filter-header">
+              <h3>筛选错题</h3>
+              <button className="filter-close" onClick={() => setShowFilter(false)}>×</button>
+            </div>
+            <div className="filter-body">
+              <section className="filter-section">
+                <div className="filter-section-title">分类</div>
+                {tree.length === 0 ? (
+                  <div className="filter-empty">暂无分类</div>
+                ) : (
+                  <CategoryTree categories={data.categories} selected={selectedCats} onToggle={toggleCat} />
+                )}
+              </section>
+              <section className="filter-section">
+                <div className="filter-section-title">难度</div>
+                <div className="filter-tag-row">
+                  <button className={`filter-tag${difficulty === 'all' ? ' active' : ''}`} onClick={() => setDifficulty('all')}>全部</button>
+                  <button className={`filter-tag${difficulty === 'easy' ? ' active' : ''}`} onClick={() => setDifficulty('easy')}>简单</button>
+                  <button className={`filter-tag${difficulty === 'medium' ? ' active' : ''}`} onClick={() => setDifficulty('medium')}>中等</button>
+                  <button className={`filter-tag${difficulty === 'hard' ? ' active' : ''}`} onClick={() => setDifficulty('hard')}>困难</button>
+                </div>
+              </section>
+              <section className="filter-section">
+                <div className="filter-section-title">复盘情况</div>
+                <div className="filter-tag-row">
+                  <button className={`filter-tag${reviewStatus === 'all' ? ' active' : ''}`} onClick={() => setReviewStatus('all')}>全部</button>
+                  <button className={`filter-tag${reviewStatus === 'pending' ? ' active' : ''}`} onClick={() => setReviewStatus('pending')}>未复盘</button>
+                  <button className={`filter-tag${reviewStatus === 'once' ? ' active' : ''}`} onClick={() => setReviewStatus('once')}>1次复盘</button>
+                  <button className={`filter-tag${reviewStatus === 'many' ? ' active' : ''}`} onClick={() => setReviewStatus('many')}>多次复盘</button>
+                  <button className={`filter-tag${reviewStatus === 'mastered' ? ' active' : ''}`} onClick={() => setReviewStatus('mastered')}>已掌握</button>
+                </div>
+              </section>
+            </div>
+            <div className="filter-footer">
+              <button className="btn btn-ghost" onClick={resetFilters}>重置</button>
+              <button className="btn btn-primary" onClick={() => setShowFilter(false)}>
+                查看结果（{filteredQuestions.length} 题）
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   )
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }

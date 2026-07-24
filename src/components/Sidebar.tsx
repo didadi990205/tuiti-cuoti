@@ -1,9 +1,5 @@
-import { NavLink } from 'react-router-dom'
-import { store } from '@/store'
-import { useStore } from '@/hooks/useStore'
-
-// 图标（简洁线条SVG）
-const Icon = {
+// 图标集合（PC/移动端共用）
+export const Icon = {
   library: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -47,49 +43,6 @@ const Icon = {
   ),
 }
 
-const menus = [
-  { path: '/library', label: '错题题库', icon: Icon.library },
-  { path: '/upload', label: '上传题目', icon: Icon.upload },
-  { path: '/stats', label: '统计看板', icon: Icon.stats },
-  { path: '/notes', label: '知识点', icon: Icon.notes },
-  { path: '/settings', label: '设置', icon: Icon.settings },
-]
-
 export default function Sidebar() {
-  const data = useStore()
-  const total = data.questions.length
-
-  return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
-        {Icon.logo}
-        <div className="sidebar-brand-text">
-          <div className="sidebar-brand-title">图推错题</div>
-          <div className="sidebar-brand-sub">工作台</div>
-        </div>
-      </div>
-
-      <nav className="sidebar-nav">
-        {menus.map(m => (
-          <NavLink
-            key={m.path}
-            to={m.path}
-            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-          >
-            <span className="sidebar-link-icon">{m.icon}</span>
-            <span className="sidebar-link-text">{m.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="sidebar-stat">
-          <div className="sidebar-stat-num">{total}</div>
-          <div className="sidebar-stat-label">累计错题</div>
-        </div>
-      </div>
-    </aside>
-  )
+  return null
 }
-
-export { Icon }

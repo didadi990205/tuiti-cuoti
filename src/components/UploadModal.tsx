@@ -4,39 +4,33 @@ import { store } from '@/store'
 import { useStore } from '@/hooks/useStore'
 import { compressImage, readFileAsDataUrl } from '@/utils/image'
 import CropModal from './CropModal'
+import CategoryTree from './CategoryTree'
 import type { Difficulty, ReviewStatus, CorrectOption } from '@/types'
-import './UploadModal.css'
 
 interface Props {
   open: boolean
   onClose: () => void
-  // 可选：编辑模式（用于"上传"入口外的复用，但实际编辑走EditPage）
-  editId?: string
 }
 
-// 统一上传弹窗：上传图片 → 手动裁剪 → 选择分类 → 填写复盘备注 + 选项/难度/状态
 export default function UploadModal({ open, onClose }: Props) {
   const data = useStore()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [rawImage, setRawImage] = useState<string | null>(null) // 原始上传图
-  const [finalImage, setFinalImage] = useState<string | null>(null) // 裁剪后图
+  const [rawImage, setRawImage] = useState<string | null>(null)
+  const [finalImage, setFinalImage] = useState<string | null>(null)
   const [finalThumb, setFinalThumb] = useState<string | null>(null)
   const [showCrop, setShowCrop] = useState(false)
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [correctOption, setCorrectOption] = useState<CorrectOption>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [reviewStatus, setReviewStatus] = useState<ReviewStatus>('pending')
+  const [reviewCount, setReviewCount] = useState(0)
   const [remark, setRemark] = useState('')
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [showNewCatInput, setShowNewCatInput] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
 
   if (!open) return null
-
-  const sortedCategories = [...data.categories].sort((a, b) => a.order - b.order)
 
   const resetState = () => {
     setRawImage(null)
@@ -47,9 +41,8 @@ export default function UploadModal({ open, onClose }: Props) {
     setCorrectOption(null)
     setDifficulty('medium')
     setReviewStatus('pending')
+    setReviewCount(0)
     setRemark('')
-    setNewCategoryName('')
-    setShowNewCatInput(false)
     setError('')
   }
 
@@ -67,7 +60,6 @@ export default function UploadModal({ open, onClose }: Props) {
     }
     setError('')
     try {
-      // 读取原图用于裁剪展示（不压缩，保留裁剪精度）
       const dataUrl = await readFileAsDataUrl(file)
       setRawImage(dataUrl)
       setFinalImage(null)
@@ -77,7 +69,6 @@ export default function UploadModal({ open, onClose }: Props) {
       console.error(err)
       setError('图片读取失败')
     }
-    // 清空input以便重复选择同一文件
     e.target.value = ''
   }
 
@@ -87,67 +78,9 @@ export default function UploadModal({ open, onClose }: Props) {
     setShowCrop(false)
   }
 
-  // 重新裁剪：唤起裁剪弹窗
   const handleRecrop = () => {
     if (!rawImage) return
     setShowCrop(true)
-  }
-
-  // 使用原图（跳过裁剪）
-  const handleUseOriginal = async () => {
-    if (!rawImage) return
-    try {
-      setProcessing(true)
-      // 压缩原图
-      const img = new Image()
-      img.src = rawImage
-      await new Promise(r => { img.onload = r })
-      // 用compressImage处理（需要File/Blob，这里直接转canvas）
-      const canvas = document.createElement('canvas')
-      const maxSize = 1600
-      const ratio = Math.min(1, maxSize / Math.max(img.width, img.height))
-      canvas.width = Math.round(img.width * ratio)
-      canvas.height = Math.round(img.height * ratio)
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
-      // 缩略图
-      const thumbCanvas = document.createElement('canvas')
-      const thumbMax = 280
-      const tr = Math.min(1, thumbMax / Math.max(img.width, img.height))
-      thumbCanvas.width = Math.round(img.width * tr)
-      thumbCanvas.height = Math.round(img.height * tr)
-      const tctx = thumbCanvas.getContext('2d')!
-      tctx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
-      const thumb = thumbCanvas.toDataURL('image/jpeg', 0.7)
-      setFinalImage(dataUrl)
-      setFinalThumb(thumb)
-      setShowCrop(false)
-    } catch (err) {
-      console.error(err)
-      setError('处理失败')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const toggleCategory = (id: string) => {
-    setCategoryIds(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    )
-  }
-
-  const handleAddCategory = () => {
-    const name = newCategoryName.trim()
-    if (!name) return
-    try {
-      const cat = store.addCategory(name)
-      setCategoryIds(prev => [...prev, cat.id])
-      setNewCategoryName('')
-      setShowNewCatInput(false)
-    } catch (err) {
-      setError((err as Error).message)
-    }
   }
 
   const handleSave = () => {
@@ -164,19 +97,26 @@ export default function UploadModal({ open, onClose }: Props) {
         correctOption,
         difficulty,
         reviewStatus,
+        reviewCount,
         remark: remark.trim(),
       })
       setProcessing(false)
       resetState()
       onClose()
-      // 跳转到编辑页方便后续修改（或停留在上传页继续）
       navigate(`/edit/${q.id}`)
     } catch (err) {
       console.error(err)
-      setError('保存失败，可能存储空间不足')
+      setError('保存失败')
       setProcessing(false)
     }
   }
+
+  const reviewOptions: { value: ReviewStatus; label: string; count: number }[] = [
+    { value: 'pending', label: '未复盘', count: 0 },
+    { value: 'once', label: '1次复盘', count: 1 },
+    { value: 'many', label: '多次复盘', count: 2 },
+    { value: 'mastered', label: '已完全掌握', count: 2 },
+  ]
 
   return (
     <div className="upload-modal-overlay" onClick={handleClose}>
@@ -189,21 +129,17 @@ export default function UploadModal({ open, onClose }: Props) {
         <div className="upload-modal-body">
           {error && <div className="upload-error">{error}</div>}
 
-          {/* 步骤1：上传图片 */}
           <section className="upload-section">
-            <div className="upload-section-title">① 上传图片</div>
+            <div className="upload-section-title">上传图片</div>
             {!finalImage ? (
-              <div
-                className="upload-dropzone"
-                onClick={() => fileInputRef.current?.click()}
-              >
+              <div className="upload-dropzone" onClick={() => fileInputRef.current?.click()}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
                 <div className="upload-dropzone-text">点击上传题目截图</div>
-                <div className="upload-dropzone-hint">支持 JPG / PNG，上传后可手动裁剪</div>
+                <div className="upload-dropzone-hint">支持 JPG / PNG</div>
               </div>
             ) : (
               <div className="upload-preview">
@@ -214,65 +150,35 @@ export default function UploadModal({ open, onClose }: Props) {
                 </div>
               </div>
             )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
           </section>
 
-          {/* 步骤2：选择分类（含新建分类） */}
           <section className="upload-section">
-            <div className="upload-section-title">② 选择分类</div>
-            {sortedCategories.length === 0 && !showNewCatInput && (
-              <div className="upload-empty-cat">还没有分类，点击下方按钮创建</div>
-            )}
-            <div className="upload-category-list">
-              {sortedCategories.map(cat => (
-                <label
-                  key={cat.id}
-                  className={`upload-category-chip${categoryIds.includes(cat.id) ? ' checked' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={categoryIds.includes(cat.id)}
-                    onChange={() => toggleCategory(cat.id)}
-                  />
-                  <span>{cat.name}</span>
-                </label>
-              ))}
-            </div>
-
-            {showNewCatInput ? (
-              <div className="upload-new-cat">
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="输入分类名称"
-                  value={newCategoryName}
-                  autoFocus
-                  onChange={e => setNewCategoryName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddCategory() }}
-                />
-                <button className="btn btn-primary btn-sm" onClick={handleAddCategory}>添加</button>
-                <button className="btn btn-text btn-sm" onClick={() => { setShowNewCatInput(false); setNewCategoryName('') }}>取消</button>
-              </div>
+            <div className="upload-section-title">选择分类</div>
+            {data.categories.length === 0 ? (
+              <div className="upload-empty-cat">暂无分类，请先在设置中创建分类</div>
             ) : (
-              <button className="upload-add-cat-btn" onClick={() => setShowNewCatInput(true)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                新建分类
-              </button>
+              <CategoryTree
+                categories={data.categories}
+                selected={categoryIds}
+                onToggle={(id) => {
+                  setCategoryIds(prev =>
+                    prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+                  )
+                }}
+              />
             )}
+            <button className="upload-add-cat-btn" onClick={() => navigate('/settings')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              去设置新建分类
+            </button>
           </section>
 
-          {/* 步骤3：正确选项 */}
           <section className="upload-section">
-            <div className="upload-section-title">③ 正确选项（可选）</div>
+            <div className="upload-section-title">正确答案</div>
             <div className="upload-option-row">
               {(['A', 'B', 'C', 'D'] as const).map(opt => (
                 <button
@@ -286,9 +192,8 @@ export default function UploadModal({ open, onClose }: Props) {
             </div>
           </section>
 
-          {/* 步骤4：难度 */}
           <section className="upload-section">
-            <div className="upload-section-title">④ 难度</div>
+            <div className="upload-section-title">难度</div>
             <div className="upload-tag-row">
               <button className={`tag-btn${difficulty === 'easy' ? ' active' : ''}`} onClick={() => setDifficulty('easy')}>简单</button>
               <button className={`tag-btn${difficulty === 'medium' ? ' active' : ''}`} onClick={() => setDifficulty('medium')}>中等</button>
@@ -296,22 +201,29 @@ export default function UploadModal({ open, onClose }: Props) {
             </div>
           </section>
 
-          {/* 步骤5：复盘状态 */}
           <section className="upload-section">
-            <div className="upload-section-title">⑤ 复盘状态</div>
+            <div className="upload-section-title">复盘情况</div>
             <div className="upload-tag-row">
-              <button className={`tag-btn${reviewStatus === 'pending' ? ' active' : ''}`} onClick={() => setReviewStatus('pending')}>未复盘</button>
-              <button className={`tag-btn${reviewStatus === 'reviewed' ? ' active' : ''}`} onClick={() => setReviewStatus('reviewed')}>已复盘</button>
-              <button className={`tag-btn${reviewStatus === 'mastered' ? ' active' : ''}`} onClick={() => setReviewStatus('mastered')}>已掌握</button>
+              {reviewOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`tag-btn${reviewStatus === opt.value ? ' active' : ''}`}
+                  onClick={() => {
+                    setReviewStatus(opt.value)
+                    setReviewCount(opt.count)
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </section>
 
-          {/* 步骤6：复盘备注 */}
           <section className="upload-section">
-            <div className="upload-section-title">⑥ 复盘备注</div>
+            <div className="upload-section-title">复盘备注</div>
             <textarea
               className="textarea upload-remark"
-              placeholder="记录解题思路、易错点、图形规律等..."
+              placeholder="记录错因、解法、避坑点等所有复盘内容..."
               rows={5}
               value={remark}
               onChange={e => setRemark(e.target.value)}
@@ -321,22 +233,14 @@ export default function UploadModal({ open, onClose }: Props) {
 
         <div className="upload-modal-footer">
           <button className="btn btn-ghost" onClick={handleClose} disabled={processing}>取消</button>
-          <button
-            className="btn btn-primary"
-            onClick={handleSave}
-            disabled={processing || !finalImage}
-          >
+          <button className="btn btn-primary" onClick={handleSave} disabled={processing || !finalImage}>
             {processing ? '保存中...' : '保存错题'}
           </button>
         </div>
       </div>
 
       {showCrop && rawImage && (
-        <CropModal
-          imageSrc={rawImage}
-          onCancel={() => setShowCrop(false)}
-          onCropComplete={handleCropComplete}
-        />
+        <CropModal imageSrc={rawImage} onCancel={() => setShowCrop(false)} onCropComplete={handleCropComplete} />
       )}
     </div>
   )

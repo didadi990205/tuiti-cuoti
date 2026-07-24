@@ -58,7 +58,7 @@ export default function SettingsPage() {
         {/* 分类管理 */}
         <section className="settings-section">
           <h2 className="settings-section-title">分类管理</h2>
-          <p className="settings-section-desc">全量自定义分类，可新增、命名、删除、拖拽排序。所有错题与笔记均可关联多个分类。</p>
+          <p className="settings-section-desc">支持一级分类 + 无限二级子分类。一级分类可展开/折叠，二级分类用于精细归档错题。</p>
           <CategoryManager />
         </section>
 
@@ -116,8 +116,8 @@ export default function SettingsPage() {
         <section className="settings-section">
           <h2 className="settings-section-title">关于</h2>
           <div className="settings-about">
-            <p><strong>图推错题工作台</strong> · v1.0.0</p>
-            <p>专为行测图形推理错题整理设计，支持自定义分类、手动裁剪、复盘管理、知识点笔记、薄弱项分析。</p>
+            <p><strong>行测错题复盘</strong> · v2.0.0</p>
+            <p>专为行测图形推理错题整理设计，支持一二级分类、手动裁剪、复盘管理、知识点笔记、薄弱项分析。</p>
             <p>所有数据存储在浏览器本地（localStorage），不会上传到任何服务器。</p>
             <p className="settings-tip">💡 建议<span style={{whiteSpace:'nowrap'}}>定期「导出备份」</span>以防数据丢失，更换设备/浏览器前请先导出。</p>
           </div>

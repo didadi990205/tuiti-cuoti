@@ -1,344 +1,78 @@
-/* ===== 移动端样式（竖屏宽度<768） ===== */
+/* ===== 移动端与极小屏适配 ===== */
 @media (max-width: 767px) {
-  .mobile-app {
-    flex-direction: column;
+  .mobile-main { -webkit-overflow-scrolling: touch; }
+
+  .library-page, .stats-page, .notes-page, .settings-page, .edit-page {
+    padding: 14px 12px calc(14px + var(--bottom-bar-height) + var(--safe-bottom));
   }
 
-  /* 顶部导航 */
-  .mobile-header {
-    height: var(--header-height);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 12px;
-    padding-top: env(safe-area-inset-top, 0);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .mobile-menu-btn {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    color: var(--text-1);
-  }
-  .mobile-menu-btn:active { background: var(--bg-hover); }
-  .mobile-logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-1);
-  }
-  .mobile-logo svg {
-    width: 26px;
-    height: 26px;
-  }
-  .mobile-header-actions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .mobile-icon-btn {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    color: var(--text-1);
-  }
-  .mobile-icon-btn:active { background: var(--bg-hover); }
-  .mobile-upload-btn {
-    padding: 7px 14px;
-    background: var(--primary);
-    color: #fff;
-    border-radius: var(--radius);
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .mobile-upload-btn:active { background: var(--primary-active); }
+  .library-header { margin-bottom: 12px; }
+  .library-title { font-size: 18px; }
+  .library-count { font-size: 12px; }
+  .library-search-wrap { gap: 6px; }
+  .library-search input { font-size: 13px; }
+  .filter-btn { padding: 7px 10px; font-size: 13px; }
 
-  /* 全屏搜索 */
-  .mobile-search-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.3);
-    z-index: 200;
-    animation: fadeIn 0.15s ease;
-  }
-  .mobile-search-bar {
-    background: var(--bg);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    color: var(--text-3);
-    padding-top: calc(8px + env(safe-area-inset-top, 0));
-  }
-  .mobile-search-bar input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: var(--bg-subtle);
-    padding: 8px 12px;
-    border-radius: var(--radius);
-    font-size: 14px;
-    color: var(--text-1);
-  }
-  .mobile-search-cancel {
-    color: var(--primary);
-    font-size: 14px;
-    padding: 8px;
-  }
+  .library-active-filters { padding: 8px; margin-bottom: 10px; }
+  .library-active-tag { padding: 3px 8px; font-size: 11px; }
 
-  /* 主内容区 */
-  .mobile-main {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--bg);
-    -webkit-overflow-scrolling: touch;
-  }
+  .question-card { padding: 10px; }
+  .question-card-thumb { width: 76px; height: 76px; }
+  .question-card-title { font-size: 13px; -webkit-line-clamp: 2; }
+  .q-time { display: none; }
+  .q-cat { font-size: 10px; }
 
-  /* 左侧抽屉 */
-  .mobile-drawer-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 300;
-    animation: fadeIn 0.2s ease;
-  }
-  .mobile-drawer {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 260px;
-    max-width: 80vw;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    animation: slideInLeft 0.25s ease;
-  }
-  .mobile-drawer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 16px;
-    border-bottom: 1px solid var(--border);
-    padding-top: calc(18px + env(safe-area-inset-top, 0));
-  }
-  .mobile-drawer-brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-1);
-  }
-  .mobile-drawer-brand svg {
-    width: 28px;
-    height: 28px;
-  }
-  .mobile-drawer-close {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-2);
-    border-radius: 50%;
-  }
-  .mobile-drawer-close:active { background: var(--bg-hover); }
-  .mobile-drawer-nav {
-    flex: 1;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .mobile-drawer-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: var(--radius);
-    color: var(--text-2);
-    font-size: 15px;
-    font-weight: 500;
-    position: relative;
-    transition: all 0.15s ease;
-  }
-  .mobile-drawer-link:active { background: var(--bg-hover); }
-  .mobile-drawer-link.active {
-    color: var(--primary);
-    font-weight: 600;
-  }
-  .mobile-drawer-link.active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 22px;
-    background: var(--primary);
-    border-radius: 0 2px 2px 0;
-  }
-  .mobile-drawer-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  .stats-overview { grid-template-columns: repeat(2, 1fr); }
+  .stats-progress-section { grid-template-columns: 1fr; }
+  .overview-card { padding: 12px 4px; }
+  .overview-num { font-size: 22px; }
+  .overview-label { font-size: 10px; }
 
-  /* ===== 各页面移动端适配 ===== */
-  .library-page,
-  .stats-page,
-  .notes-page,
-  .settings-page,
-  .edit-page {
-    padding: 16px 14px;
-  }
-  .edit-page {
-    padding-bottom: 100px;
-  }
+  .upload-modal { max-height: 90vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .upload-modal-header { padding: 12px 16px; }
+  .upload-modal-body { padding: 14px 16px; }
+  .upload-modal-footer { padding: 10px 16px calc(10px + var(--safe-bottom)); }
 
-  .library-title {
-    font-size: 20px;
-  }
-  .library-header {
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .library-actions {
-    margin-left: 0;
-    width: 100%;
-  }
-  .library-actions .btn {
-    flex: 1;
-  }
+  .filter-drawer { width: 100%; max-width: 100%; border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
+  .mobile-drawer { width: 280px; max-width: 80vw; }
+  .mobile-drawer-nav { padding: 0 12px; }
+  .mobile-drawer-link { padding: 10px 12px; font-size: 14px; }
 
-  .library-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .question-card-remark {
-    -webkit-line-clamp: 2;
-    font-size: 11px;
-    padding: 6px 10px 10px;
-  }
-  .question-card-cats {
-    padding: 6px 10px 0;
-  }
+  .edit-image { max-height: 340px; }
+  .edit-save-bar { padding: 8px 12px; bottom: var(--bottom-bar-height); }
+  .edit-save-bar .btn { font-size: 14px; padding: 8px 12px; }
 
-  /* 统计页移动端 */
-  .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .stats-progress-section {
-    grid-template-columns: 1fr;
-  }
-  .settings-data-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .diff-bar-count {
-    width: 60px;
-  }
+  .category-tree-row .category-tree-actions { display: none; }
+  .category-tree-row .category-tree-count { font-size: 10px; }
+  .category-tree-actions { flex-wrap: wrap; }
+  .category-tree-row .btn-sm { font-size: 10px; padding: 2px 6px; }
+  .category-tree-row .category-tree-name { font-size: 13px; }
 
-  /* 编辑页：保存栏占满宽度，跟随键盘 */
-  .edit-save-bar {
-    left: 0;
-    padding: 10px 14px calc(10px + var(--safe-bottom));
-  }
-  .edit-save-bar .btn {
-    max-width: 100%;
-  }
-  /* 键盘弹起时保存栏上移 - 通过visualViewport在JS中处理，这里确保position fixed */
-  .edit-save-bar.keyboard-up {
-    position: fixed;
-    bottom: 0;
-  }
-
-  /* 上传弹窗移动端全屏化 */
-  .upload-modal,
-  .note-editor {
-    max-width: 100%;
-    max-height: 100%;
-    height: 100%;
-    border-radius: 0;
-  }
-  .upload-modal-overlay,
-  .note-editor-overlay {
-    padding: 0;
-  }
-
-  /* 筛选抽屉移动端全屏化 */
-  .filter-drawer {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  /* 笔记图片移动端 */
-  .note-card-img {
-    width: 90px;
-    height: 90px;
-  }
-
-  /* 难度/状态标签按钮移动端间距 */
-  .upload-tag-row,
-  .edit-tag-row,
-  .upload-option-row,
-  .edit-option-row {
-    gap: 6px;
-  }
-  .tag-btn {
-    padding: 9px 8px;
-    font-size: 13px;
-  }
-
-  /* 设置页分类项移动端紧凑 */
-  .category-item {
-    flex-wrap: wrap;
-  }
-  .category-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  /* 防止文字过小、触摸目标过小 */
-  .btn {
-    min-height: 36px;
-  }
-  .btn-sm {
-    min-height: 30px;
-  }
+  .btn { min-height: 36px; }
 }
 
-/* 极小屏（360px）额外优化 */
 @media (max-width: 380px) {
-  .library-grid {
-    grid-template-columns: 1fr;
-  }
-  .mobile-logo span {
-    display: none;
-  }
-  .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .settings-data-stats {
-    grid-template-columns: 1fr 1fr;
-  }
-  .q-badge {
-    font-size: 10px;
-    padding: 1px 6px;
-  }
+  .mobile-logo span { display: none; }
+  .question-card-thumb { width: 64px; height: 64px; }
+  .question-card-title { font-size: 12px; }
+  .library-search-wrap { flex-wrap: wrap; }
+  .library-search { width: 100%; }
+  .filter-btn { width: 100%; }
+  .stats-overview { grid-template-columns: repeat(2, 1fr); }
+  .q-answer { padding: 1px 6px; font-size: 11px; }
+  .q-status, .q-difficulty { padding: 1px 6px; font-size: 10px; }
+}
+
+/* ===== PC 端也显示移动布局（需求：横屏保留双栏 → 实际现改为移动优先，PC 也走顶部导航+底部栏） ===== */
+@media (min-width: 768px) {
+  .app { max-width: 520px; margin: 0 auto; box-shadow: 0 0 24px rgba(0,0,0,0.08); }
+  .mobile-header, .bottom-bar { max-width: 520px; left: 50%; transform: translateX(-50%); }
+  .main-content, .mobile-main { background: var(--bg); }
+}
+
+/* 底部栏适配刘海屏 */
+.bottom-bar { padding-bottom: max(8px, var(--safe-bottom)); height: calc(56px + var(--safe-bottom)); }
+.edit-save-bar { bottom: calc(56px + var(--safe-bottom)); }
+.library-page, .stats-page, .notes-page, .settings-page, .edit-page {
+  padding-bottom: calc(14px + 56px + var(--safe-bottom));
 }

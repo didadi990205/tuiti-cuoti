@@ -7,24 +7,21 @@ interface Props {
   onCropComplete: (dataUrl: string, thumb: string) => void
 }
 
-interface CropRect {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-// 裁剪弹窗：用户拖拽选择裁剪区域，含重新裁剪/取消按钮
+// 四向边框裁剪：控制 top/bottom/left/right 四条边距
 export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const [imgRect, setImgRect] = useState({ w: 0, h: 0, left: 0, top: 0 })
-  const [crop, setCrop] = useState<CropRect | null>(null)
-  const [dragging, setDragging] = useState(false)
-  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null)
-  const [processing, setProcessing] = useState(false)
 
-  // 计算图片在容器中的实际显示位置和尺寸
+  // 边距：百分比（0-1），表示保留的中间区域
+  const [top, setTop] = useState(0.05)
+  const [bottom, setBottom] = useState(0.05)
+  const [left, setLeft] = useState(0.05)
+  const [right, setRight] = useState(0.05)
+
+  const [processing, setProcessing] = useState(false)
+  const [dragging, setDragging] = useState<'top' | 'bottom' | 'left' | 'right' | null>(null)
+
   useEffect(() => {
     const updateRect = () => {
       const img = imgRef.current
@@ -38,9 +35,8 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
         top: rect.top - (containerRect?.top ?? 0),
       })
     }
-    // 图片加载后计算
     const img = imgRef.current
-    if (img && img.complete) updateRect()
+    if (img?.complete) updateRect()
     img?.addEventListener('load', updateRect)
     window.addEventListener('resize', updateRect)
     return () => {
@@ -49,7 +45,6 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
     }
   }, [])
 
-  // 触摸/鼠标事件转坐标
   const getPos = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const containerRect = containerRef.current?.getBoundingClientRect()
     if (!containerRect) return { x: 0, y: 0 }
@@ -68,58 +63,55 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
     }
   }, [imgRect])
 
-  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-    if (processing) return
+  const handleStart = (e: React.MouseEvent | React.TouchEvent, edge: 'top' | 'bottom' | 'left' | 'right') => {
     e.preventDefault()
-    const pos = getPos(e)
-    if (pos.x < 0 || pos.x > imgRect.w || pos.y < 0 || pos.y > imgRect.h) return
-    setDragging(true)
-    setStartPoint(pos)
-    setCrop({ x: pos.x, y: pos.y, w: 0, h: 0 })
+    setDragging(edge)
   }
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!dragging || !startPoint) return
+    if (!dragging || !imgRect.w || !imgRect.h) return
     e.preventDefault()
     const pos = getPos(e)
-    // 限制在图片范围内
-    const clampedX = Math.max(0, Math.min(imgRect.w, pos.x))
-    const clampedY = Math.max(0, Math.min(imgRect.h, pos.y))
-    setCrop({
-      x: Math.min(startPoint.x, clampedX),
-      y: Math.min(startPoint.y, clampedY),
-      w: Math.abs(clampedX - startPoint.x),
-      h: Math.abs(clampedY - startPoint.y),
-    })
-  }
-
-  const handleEnd = () => {
-    setDragging(false)
-    setStartPoint(null)
-  }
-
-  const handleConfirm = async () => {
-    if (!crop || crop.w < 10 || crop.h < 10) {
-      alert('请拖拽选择有效的裁剪区域')
-      return
+    if (dragging === 'top') {
+      const pct = Math.max(0, Math.min(1 - bottom - 0.1, pos.y / imgRect.h))
+      setTop(pct)
+    } else if (dragging === 'bottom') {
+      const pct = Math.max(0, Math.min(1 - top - 0.1, 1 - pos.y / imgRect.h))
+      setBottom(pct)
+    } else if (dragging === 'left') {
+      const pct = Math.max(0, Math.min(1 - right - 0.1, pos.x / imgRect.w))
+      setLeft(pct)
+    } else if (dragging === 'right') {
+      const pct = Math.max(0, Math.min(1 - left - 0.1, 1 - pos.x / imgRect.w))
+      setRight(pct)
     }
+  }
+
+  const handleEnd = () => setDragging(null)
+
+  // 计算裁剪区域（考虑安全边距）
+  const handleConfirm = async () => {
     if (!imgRef.current) return
+    const img = imgRef.current
     setProcessing(true)
     try {
-      const img = imgRef.current
+      // 显示边距 -> 实际裁剪坐标
+      const displayX = imgRect.left + left * imgRect.w
+      const displayY = imgRect.top + top * imgRect.h
+      const displayW = imgRect.w - (left + right) * imgRect.w
+      const displayH = imgRect.h - (top + bottom) * imgRect.h
+
       const { dataUrl, thumb } = await cropImage(
         imageSrc,
-        crop.x,
-        crop.y,
-        crop.w,
-        crop.h,
+        displayX,
+        displayY,
+        displayW,
+        displayH,
         imgRect.w,
-        imgRect.h
+        imgRect.h,
+        0.02 // 微小安全边距
       )
-      // 校验图片有效（避免裁剪失败）
-      if (!dataUrl || dataUrl.length < 100) {
-        throw new Error('裁剪失败')
-      }
+      if (!dataUrl || dataUrl.length < 100) throw new Error('裁剪失败')
       onCropComplete(dataUrl, thumb)
     } catch (err) {
       console.error(err)
@@ -129,27 +121,34 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
     }
   }
 
+  // 重新裁剪：重置为默认边距
   const handleRecrop = () => {
-    setCrop(null)
+    setTop(0.05)
+    setBottom(0.05)
+    setLeft(0.05)
+    setRight(0.05)
   }
+
+  const cropX = imgRect.left + left * imgRect.w
+  const cropY = imgRect.top + top * imgRect.h
+  const cropW = imgRect.w - (left + right) * imgRect.w
+  const cropH = imgRect.h - (top + bottom) * imgRect.h
 
   return (
     <div className="crop-modal-overlay" onClick={onCancel}>
       <div className="crop-modal" onClick={e => e.stopPropagation()}>
         <div className="crop-modal-header">
-          <h3>裁剪图片</h3>
+          <h3>重新裁切</h3>
           <button className="crop-close-btn" onClick={onCancel} aria-label="取消">×</button>
         </div>
         <div className="crop-modal-body">
-          <p className="crop-tip">拖拽选择要保留的区域，已预留安全边距防止丢失内容</p>
+          <p className="crop-tip">拖动图片四周边线，调整保留区域</p>
           <div
             className="crop-canvas"
             ref={containerRef}
-            onMouseDown={handleStart}
             onMouseMove={handleMove}
             onMouseUp={handleEnd}
             onMouseLeave={handleEnd}
-            onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
           >
@@ -160,55 +159,64 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
               className="crop-img"
               draggable={false}
             />
-            {/* 半透明遮罩 */}
-            {crop && crop.w > 0 && crop.h > 0 && (
-              <>
-                <div className="crop-mask" style={{
-                  left: 0, top: 0, width: imgRect.left + crop.x, height: imgRect.top + imgRect.h,
-                }} />
-                <div className="crop-mask" style={{
-                  left: imgRect.left + crop.x + crop.w, top: 0,
-                  width: imgRect.w - crop.x - crop.w + (imgRect.w - imgRect.w), height: imgRect.top + imgRect.h,
-                }} />
-                <div className="crop-mask" style={{
-                  left: imgRect.left + crop.x, top: 0, width: crop.w, height: imgRect.top + crop.y,
-                }} />
-                <div className="crop-mask" style={{
-                  left: imgRect.left + crop.x, top: imgRect.top + crop.y + crop.h,
-                  width: crop.w, height: imgRect.h - crop.y - crop.h,
-                }} />
-                <div
-                  className="crop-rect"
-                  style={{
-                    left: imgRect.left + crop.x,
-                    top: imgRect.top + crop.y,
-                    width: crop.w,
-                    height: crop.h,
-                  }}
-                >
-                  <div className="crop-handle crop-handle-tl" />
-                  <div className="crop-handle crop-handle-tr" />
-                  <div className="crop-handle crop-handle-bl" />
-                  <div className="crop-handle crop-handle-br" />
-                </div>
-              </>
-            )}
+            {/* 遮罩 */}
+            <div className="crop-mask" style={{
+              left: 0, top: 0, width: imgRect.left + imgRect.w, height: imgRect.top + cropY,
+            }} />
+            <div className="crop-mask" style={{
+              left: imgRect.left + cropX + cropW, top: 0,
+              width: imgRect.w - cropX - cropW + (imgRect.w - imgRect.w), height: imgRect.top + imgRect.h,
+            }} />
+            <div className="crop-mask" style={{
+              left: imgRect.left + cropX, top: 0, width: cropW, height: imgRect.top + cropY,
+            }} />
+            <div className="crop-mask" style={{
+              left: imgRect.left + cropX, top: imgRect.top + cropY + cropH,
+              width: cropW, height: imgRect.h - cropY - cropH,
+            }} />
+
+            {/* 保留区域边框 */}
+            <div
+              className="crop-frame"
+              style={{
+                left: cropX,
+                top: cropY,
+                width: cropW,
+                height: cropH,
+              }}
+            />
+
+            {/* 四条可拖动边线 */}
+            <div
+              className="crop-edge crop-edge-top"
+              style={{ left: cropX, top: cropY - 2, width: cropW }}
+              onMouseDown={e => handleStart(e, 'top')}
+              onTouchStart={e => handleStart(e, 'top')}
+            />
+            <div
+              className="crop-edge crop-edge-bottom"
+              style={{ left: cropX, top: cropY + cropH - 2, width: cropW }}
+              onMouseDown={e => handleStart(e, 'bottom')}
+              onTouchStart={e => handleStart(e, 'bottom')}
+            />
+            <div
+              className="crop-edge crop-edge-left"
+              style={{ left: cropX - 2, top: cropY, height: cropH }}
+              onMouseDown={e => handleStart(e, 'left')}
+              onTouchStart={e => handleStart(e, 'left')}
+            />
+            <div
+              className="crop-edge crop-edge-right"
+              style={{ left: cropX + cropW - 2, top: cropY, height: cropH }}
+              onMouseDown={e => handleStart(e, 'right')}
+              onTouchStart={e => handleStart(e, 'right')}
+            />
           </div>
         </div>
         <div className="crop-modal-footer">
-          <button className="btn btn-ghost" onClick={onCancel} disabled={processing}>
-            取消
-          </button>
-          {crop && crop.w > 10 && crop.h > 10 && (
-            <button className="btn btn-ghost" onClick={handleRecrop} disabled={processing}>
-              重新裁剪
-            </button>
-          )}
-          <button
-            className="btn btn-primary"
-            onClick={handleConfirm}
-            disabled={processing || !crop || crop.w < 10 || crop.h < 10}
-          >
+          <button className="btn btn-ghost" onClick={onCancel} disabled={processing}>取消</button>
+          <button className="btn btn-ghost" onClick={handleRecrop} disabled={processing}>重新裁剪</button>
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={processing}>
             {processing ? '处理中...' : '确认裁剪'}
           </button>
         </div>
