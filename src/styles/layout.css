@@ -14,43 +14,17 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg);
-  padding-bottom: 64px; /* 给底部操作栏留空间 */
-}
-
-/* 底部全局操作栏 */
-.bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  background: var(--bg);
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  z-index: 100;
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-.bottom-bar-btn {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-2);
-  background: transparent;
-  transition: color 0.15s ease;
-}
-.bottom-bar-btn:active {
-  color: var(--primary);
-  background: var(--bg-hover);
 }
 
 /* 页面容器 */
 .library-page, .stats-page, .notes-page, .settings-page, .edit-page {
   min-height: 100%;
-  padding: 16px 14px calc(16px + 56px + env(safe-area-inset-bottom, 0));
+  padding: 16px 14px;
+}
+
+/* 编辑页因底部有保存栏，需额外留白 */
+.edit-page {
+  padding-bottom: 72px;
 }
 
 .library-title, .stats-title, .notes-title, .settings-title {

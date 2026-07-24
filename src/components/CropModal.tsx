@@ -151,8 +151,6 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
         crop.y,
         crop.w,
         crop.h,
-        imgSize.w,
-        imgSize.h,
         0.02
       )
       if (!dataUrl || dataUrl.length < 100) throw new Error('²Ã¼ôÊ§°Ü')

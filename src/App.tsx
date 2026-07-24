@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import Sidebar from './components/Sidebar'
 import MobileHeader from './components/MobileHeader'
 import MobileDrawer from './components/MobileDrawer'
-import BottomBar from './components/BottomBar'
 import LibraryPage from './pages/LibraryPage'
 import UploadPage from './pages/UploadPage'
 import StatsPage from './pages/StatsPage'
@@ -42,7 +41,6 @@ function PCLayout() {
       <main className="main-content">
         <AppRoutes />
       </main>
-      <BottomBar />
     </div>
   )
 }
@@ -62,7 +60,6 @@ function MobileLayout() {
       <main className="mobile-main">
         <AppRoutes />
       </main>
-      <BottomBar />
     </div>
   )
 }

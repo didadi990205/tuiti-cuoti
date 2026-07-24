@@ -60,7 +60,8 @@ function makeThumbnail(img: HTMLImageElement, maxSide: number): string {
   return canvas.toDataURL('image/jpeg', 0.7)
 }
 
-// 裁剪图片：根据坐标裁剪出指定区域，预留安全边距防止丢失内容
+// 裁剪图片：根据自然坐标裁剪出指定区域，预留安全边距防止丢失内容
+// cropX/cropY/cropW/cropH 均基于图片 naturalWidth/naturalHeight 的像素坐标
 // safePadPercent: 安全边距百分比（相对裁剪框），避免裁掉选项序号
 export function cropImage(
   imageSrc: string,
@@ -68,30 +69,21 @@ export function cropImage(
   cropY: number,
   cropW: number,
   cropH: number,
-  naturalW: number,
-  naturalH: number,
-  safePadPercent = 0.04
+  safePadPercent = 0.02
 ): Promise<{ dataUrl: string; thumb: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       try {
-        // 比例转换：从显示坐标到自然坐标
-        const scaleX = img.naturalWidth / naturalW
-        const scaleY = img.naturalHeight / naturalH
-
-        let sx = cropX * scaleX
-        let sy = cropY * scaleY
-        let sw = cropW * scaleX
-        let sh = cropH * scaleY
-
         // 应用安全边距：向四周扩展
-        const padX = sw * safePadPercent
-        const padY = sh * safePadPercent
-        sx = Math.max(0, sx - padX)
-        sy = Math.max(0, sy - padY)
-        sw = Math.min(img.naturalWidth - sx, sw + 2 * padX)
-        sh = Math.min(img.naturalHeight - sy, sh + 2 * padY)
+        const padX = cropW * safePadPercent
+        const padY = cropH * safePadPercent
+        const sx = Math.max(0, cropX - padX)
+        const sy = Math.max(0, cropY - padY)
+        const sw = Math.min(img.naturalWidth - sx, cropW + 2 * padX)
+        const sh = Math.min(img.naturalHeight - sy, cropH + 2 * padY)
+
+        if (sw <= 0 || sh <= 0) throw new Error('裁剪区域无效')
 
         const canvas = document.createElement('canvas')
         canvas.width = Math.round(sw)
