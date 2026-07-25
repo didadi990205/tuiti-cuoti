@@ -5,7 +5,8 @@ import { useStore } from '@/hooks/useStore'
 import { readFileAsDataUrl } from '@/utils/image'
 import CropModal from '@/components/CropModal'
 import CategoryTree from '@/components/CategoryTree'
-import type { Difficulty, ReviewStatus } from '@/types'
+import StarRating from '@/components/StarRating'
+import type { ReviewStatus } from '@/types'
 
 export default function EditPage() {
   const { id } = useParams()
@@ -127,6 +128,19 @@ export default function EditPage() {
       )}
 
       <div className="edit-body">
+        {/* 顶部：只有图片标题 + 删除图标在右上角 */}
+        <div className="edit-top-bar">
+          <h2 className="edit-page-title">编辑错题</h2>
+          <button className="edit-delete-icon" onClick={handleDelete} aria-label="删除错题">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        </div>
+
         <section className="edit-section edit-image-section">
           <div className="edit-image-wrap" onClick={() => fileInputRef.current?.click()}>
             <img src={image} alt="错题" className="edit-image" />
@@ -158,21 +172,7 @@ export default function EditPage() {
 
         <section className="edit-section">
           <div className="edit-section-title">难度</div>
-          <div className="edit-tag-row">
-            {([
-              { value: 'easy', label: '简单' },
-              { value: 'medium', label: '中等' },
-              { value: 'hard', label: '困难' },
-            ] as { value: Difficulty; label: string }[]).map(opt => (
-              <button
-                key={opt.value}
-                className={`tag-btn${question.difficulty === opt.value ? ' active' : ''}`}
-                onClick={() => updateTag({ difficulty: opt.value })}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <StarRating value={question.difficulty} onChange={d => updateTag({ difficulty: d as any })} size={28} />
         </section>
 
         <section className="edit-section">
@@ -219,15 +219,12 @@ export default function EditPage() {
             </button>
           </div>
         </section>
-
-        <section className="edit-section danger-zone">
-          <button className="btn btn-danger btn-block" onClick={handleDelete}>删除错题</button>
-        </section>
       </div>
 
+      {/* 底部固定：返回 | 保存修改 */}
       <div className="edit-save-bar">
-        <button className="btn btn-ghost" onClick={() => navigate('/library')}>返回</button>
-        <button className="btn btn-primary" onClick={handleSave} disabled={!dirty || processing}>
+        <button className="btn btn-ghost edit-save-back" onClick={() => navigate('/library')}>返回</button>
+        <button className="btn btn-primary edit-save-save" onClick={handleSave} disabled={!dirty || processing}>
           {processing ? '保存中...' : dirty ? '保存修改' : '已保存'}
         </button>
       </div>

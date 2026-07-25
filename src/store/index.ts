@@ -1,4 +1,4 @@
-import type { AppData, Category, Question, Note, CategoryStat, ReviewStatus } from '@/types'
+import type { AppData, Category, Question, Note, CategoryStat, ReviewStatus, Difficulty } from '@/types'
 
 const STORAGE_KEY = 'tuiti-cuoti-data-v2'
 const DATA_VERSION = 2
@@ -59,13 +59,21 @@ function migrateData(parsed: any): AppData {
       status = q.reviewStatus
       count = q.reviewCount ?? (status === 'once' ? 1 : 2)
     }
+    // 难度迁移：旧字符串 -> 星级
+    let difficulty: Difficulty = 3
+    if (q.difficulty === 'easy') difficulty = 2
+    else if (q.difficulty === 'medium') difficulty = 3
+    else if (q.difficulty === 'hard') difficulty = 4
+    else if (typeof q.difficulty === 'number' && q.difficulty >= 1 && q.difficulty <= 5) {
+      difficulty = q.difficulty
+    }
     return {
       id: q.id || genId(),
       image: q.image || '',
       imageThumb: q.imageThumb,
       categoryIds: Array.isArray(q.categoryIds) ? q.categoryIds : [],
       correctOption: q.correctOption ?? null,
-      difficulty: q.difficulty || 'medium',
+      difficulty,
       reviewStatus: status,
       reviewCount: count,
       remark: q.remark || '',
@@ -355,9 +363,11 @@ export const store = {
         once: items.filter(q => q.reviewStatus === 'once').length,
         many: items.filter(q => q.reviewStatus === 'many').length,
         mastered: items.filter(q => q.reviewStatus === 'mastered').length,
-        easy: items.filter(q => q.difficulty === 'easy').length,
-        medium: items.filter(q => q.difficulty === 'medium').length,
-        hard: items.filter(q => q.difficulty === 'hard').length,
+        oneStar: items.filter(q => q.difficulty === 1).length,
+        twoStar: items.filter(q => q.difficulty === 2).length,
+        threeStar: items.filter(q => q.difficulty === 3).length,
+        fourStar: items.filter(q => q.difficulty === 4).length,
+        fiveStar: items.filter(q => q.difficulty === 5).length,
       }
     })
   },

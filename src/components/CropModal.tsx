@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { cropImage } from '@/utils/image'
 
 interface Props {
   imageSrc: string
@@ -7,59 +6,60 @@ interface Props {
   onCropComplete: (dataUrl: string, thumb: string) => void
 }
 
-// 八把手 + 框内拖动整体 + RAF 性能优化
+// 八把手 + 框内拖动图片 裁剪
 export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 })
 
-  // 裁剪框相对于图片显示区域左上角的坐标和尺寸（单位 px，相对于图片自然显示尺寸）
+  // 图片在容器内的偏移（用于框内拖动整体移动）
+  const [imgOffset, setImgOffset] = useState({ x: 0, y: 0 })
+  // 裁剪框在容器内的坐标和尺寸（容器大小就是图片大小）
   const [crop, setCrop] = useState({ x: 0, y: 0, w: 0, h: 0 })
+
+  const [processing, setProcessing] = useState(false)
   const rafRef = useRef<number | null>(null)
   const pendingCrop = useRef(crop)
-
-  // 拖动状态
+  const pendingOffset = useRef(imgOffset)
   const dragRef = useRef<{
     type: 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
     startX: number
     startY: number
-    orig: { x: number; y: number; w: number; h: number }
+    origCrop: { x: number; y: number; w: number; h: number }
+    origOffset: { x: number; y: number }
   } | null>(null)
 
-  // 图片加载后初始化裁剪框（居中 80%）
+  // 初始化：图片加载完成后设置容器和裁剪框
   useEffect(() => {
     if (!imgLoaded || !imgRef.current) return
     const img = imgRef.current
     const w = img.naturalWidth
     const h = img.naturalHeight
     setImgSize({ w, h })
-    setCrop({
-      x: w * 0.1,
-      y: h * 0.1,
-      w: w * 0.8,
-      h: h * 0.8,
-    })
+    // 裁剪框居中 80%
+    setCrop({ x: w * 0.1, y: h * 0.1, w: w * 0.8, h: h * 0.8 })
+    setImgOffset({ x: 0, y: 0 })
   }, [imgLoaded])
 
   // RAF 批量更新，降低拖动渲染延迟
-  const flushCrop = useCallback(() => {
+  const flush = useCallback(() => {
     rafRef.current = null
     setCrop(pendingCrop.current)
+    setImgOffset(pendingOffset.current)
   }, [])
 
-  const scheduleUpdate = useCallback((next: typeof crop) => {
-    pendingCrop.current = next
+  const schedule = useCallback((nextCrop: typeof crop, nextOffset: typeof imgOffset) => {
+    pendingCrop.current = nextCrop
+    pendingOffset.current = nextOffset
     if (rafRef.current == null) {
-      rafRef.current = requestAnimationFrame(flushCrop)
+      rafRef.current = requestAnimationFrame(flush)
     }
-  }, [flushCrop])
+  }, [flush])
 
-  useEffect(() => () => {
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
-  }, [])
+  useEffect(() => () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current) }, [])
 
-  const getEventPos = (e: React.MouseEvent | React.TouchEvent) => {
+  // 获取鼠标/触摸在容器内的坐标（容器即图片大小）
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const img = imgRef.current
     if (!img) return { x: 0, y: 0 }
     const rect = img.getBoundingClientRect()
@@ -72,12 +72,10 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
       clientX = e.clientX
       clientY = e.clientY
     }
-    // 转换为图片自然坐标
-    const scaleX = img.naturalWidth / rect.width
-    const scaleY = img.naturalHeight / rect.height
+    // 容器内坐标，不考虑缩放（CSS 缩放不影响逻辑）
     return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
+      x: (clientX - rect.left) * (img.naturalWidth / rect.width),
+      y: (clientY - rect.top) * (img.naturalHeight / rect.height),
     }
   }
 
@@ -87,12 +85,13 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
   ) => {
     e.preventDefault()
     e.stopPropagation()
-    const pos = getEventPos(e)
+    const pos = getPos(e)
     dragRef.current = {
       type,
       startX: pos.x,
       startY: pos.y,
-      orig: { ...pendingCrop.current },
+      origCrop: { ...pendingCrop.current },
+      origOffset: { ...pendingOffset.current },
     }
   }
 
@@ -100,59 +99,84 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
     const drag = dragRef.current
     if (!drag) return
     e.preventDefault()
-    const pos = getEventPos(e)
+    const pos = getPos(e)
     const dx = pos.x - drag.startX
     const dy = pos.y - drag.startY
-    const o = drag.orig
-    const MIN = 40 // 最小裁剪尺寸
+    const MIN = 40
 
-    let { x, y, w, h } = o
+    let { x, y, w, h } = drag.origCrop
+    let { x: ox, y: oy } = drag.origOffset
 
     if (drag.type === 'move') {
-      // 整体移动，限制在图片范围内
-      x = Math.max(0, Math.min(imgSize.w - o.w, o.x + dx))
-      y = Math.max(0, Math.min(imgSize.h - o.h, o.y + dy))
+      // 整体移动图片：限制不能让图片完全离开裁剪框
+      ox = drag.origOffset.x + dx
+      oy = drag.origOffset.y + dy
+      // 图片左上角不能跑到裁剪框右下角右边/下边
+      // 图片右下角不能跑到裁剪框左上角左边/上边
+      const maxX = Math.max(0, x + w - imgSize.w)
+      const minX = Math.min(0, x)
+      const maxY = Math.max(0, y + h - imgSize.h)
+      const minY = Math.min(0, y)
+      ox = Math.max(minX, Math.min(maxX, ox))
+      oy = Math.max(minY, Math.min(maxY, oy))
     } else {
-      // 八把手调整
       if (drag.type.includes('w')) {
-        const newX = Math.max(0, Math.min(o.x + o.w - MIN, o.x + dx))
-        w = o.w - (newX - o.x)
+        const newX = Math.max(0, Math.min(x + w - MIN, x + dx))
+        w = w - (newX - x)
         x = newX
       }
       if (drag.type.includes('e')) {
-        w = Math.max(MIN, Math.min(imgSize.w - o.x, o.w + dx))
+        w = Math.max(MIN, Math.min(imgSize.w - x, w + dx))
       }
       if (drag.type.includes('n')) {
-        const newY = Math.max(0, Math.min(o.y + o.h - MIN, o.y + dy))
-        h = o.h - (newY - o.y)
+        const newY = Math.max(0, Math.min(y + h - MIN, y + dy))
+        h = h - (newY - y)
         y = newY
       }
       if (drag.type.includes('s')) {
-        h = Math.max(MIN, Math.min(imgSize.h - o.y, o.h + dy))
+        h = Math.max(MIN, Math.min(imgSize.h - y, h + dy))
       }
     }
 
-    scheduleUpdate({ x, y, w, h })
+    schedule({ x, y, w, h }, { x: ox, y: oy })
   }
 
   const endDrag = () => {
     dragRef.current = null
   }
 
+  // 直接内嵌裁剪，不依赖外部 cropImage
   const handleConfirm = async () => {
-    if (!imgRef.current || crop.w < 10 || crop.h < 10) return
+    if (!imgRef.current || crop.w <= 0 || crop.h <= 0) return
     const img = imgRef.current
     setProcessing(true)
     try {
-      // 直接用图片自然坐标裁剪
-      const { dataUrl, thumb } = await cropImage(
-        imageSrc,
-        crop.x,
-        crop.y,
-        crop.w,
-        crop.h,
-        0.02
-      )
+      // 计算原图上的裁剪区域（考虑图片偏移）
+      let sx = crop.x - imgOffset.x
+      let sy = crop.y - imgOffset.y
+      let sw = crop.w
+      let sh = crop.h
+
+      // 限制在图片范围内
+      sx = Math.max(0, sx)
+      sy = Math.max(0, sy)
+      sw = Math.min(img.naturalWidth - sx, sw)
+      sh = Math.min(img.naturalHeight - sy, sh)
+
+      if (sw <= 0 || sh <= 0) throw new Error('裁剪区域无效')
+
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(sw)
+      canvas.height = Math.round(sh)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas 不可用')
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+      // 生成缩略图
+      const thumb = await makeThumb(canvas)
       if (!dataUrl || dataUrl.length < 100) throw new Error('裁剪失败')
       onCropComplete(dataUrl, thumb)
     } catch (err) {
@@ -164,21 +188,30 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
   }
 
   const handleRecrop = () => {
-    setCrop({
-      x: imgSize.w * 0.1,
-      y: imgSize.h * 0.1,
-      w: imgSize.w * 0.8,
-      h: imgSize.h * 0.8,
-    })
-    // 滚动回左上
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft = 0
-      scrollRef.current.scrollTop = 0
-    }
+    setCrop({ x: imgSize.w * 0.1, y: imgSize.h * 0.1, w: imgSize.w * 0.8, h: imgSize.h * 0.8 })
+    setImgOffset({ x: 0, y: 0 })
   }
 
-  const [processing, setProcessing] = useState(false)
+  // 从 canvas 生成缩略图
+  const makeThumb = (canvas: HTMLCanvasElement): Promise<string> => {
+    return new Promise((resolve) => {
+      const max = 280
+      const ratio = Math.min(1, max / Math.max(canvas.width, canvas.height))
+      const w = Math.round(canvas.width * ratio)
+      const h = Math.round(canvas.height * ratio)
+      const tc = document.createElement('canvas')
+      tc.width = w
+      tc.height = h
+      const tctx = tc.getContext('2d')
+      if (!tctx) return resolve(canvas.toDataURL('image/jpeg', 0.92))
+      tctx.imageSmoothingEnabled = true
+      tctx.imageSmoothingQuality = 'medium'
+      tctx.drawImage(canvas, 0, 0, w, h)
+      resolve(tc.toDataURL('image/jpeg', 0.7))
+    })
+  }
 
+  // 容器视觉大小：CSS 缩放显示，但逻辑坐标是 natural 尺寸
   return (
     <div className="crop-modal-overlay" onClick={onCancel}>
       <div className="crop-modal" onClick={e => e.stopPropagation()}>
@@ -187,8 +220,8 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
           <button className="crop-close-btn" onClick={onCancel} aria-label="取消">×</button>
         </div>
         <div className="crop-modal-body">
-          <p className="crop-tip">拖动四角/四边调整区域，按住框内可整体移动</p>
-          <div className="crop-scroll" ref={scrollRef}>
+          <p className="crop-tip">拖动四角/四边调整区域，框内按住可移动图片</p>
+          <div className="crop-scroll">
             <div
               className="crop-img-wrap"
               onMouseMove={onMove}
@@ -196,6 +229,7 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
               onMouseLeave={endDrag}
               onTouchMove={onMove}
               onTouchEnd={endDrag}
+              style={{ width: imgSize.w, height: imgSize.h }}
             >
               <img
                 ref={imgRef}
@@ -204,10 +238,11 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
                 className="crop-img"
                 draggable={false}
                 onLoad={() => setImgLoaded(true)}
+                style={{ transform: `translate(${imgOffset.x}px, ${imgOffset.y}px)` }}
               />
               {imgLoaded && crop.w > 0 && (
                 <>
-                  {/* 四周遮罩 */}
+                  {/* 遮罩：裁剪框外的四个矩形 */}
                   <div className="crop-mask" style={{ left: 0, top: 0, width: crop.x, height: imgSize.h }} />
                   <div className="crop-mask" style={{ left: crop.x + crop.w, top: 0, width: imgSize.w - crop.x - crop.w, height: imgSize.h }} />
                   <div className="crop-mask" style={{ left: crop.x, top: 0, width: crop.w, height: crop.y }} />
@@ -220,13 +255,11 @@ export default function CropModal({ imageSrc, onCancel, onCropComplete }: Props)
                     onMouseDown={e => startDrag(e, 'move')}
                     onTouchStart={e => startDrag(e, 'move')}
                   >
-                    {/* 网格辅助线 */}
                     <div className="crop-grid-h" style={{ top: '33.33%' }} />
                     <div className="crop-grid-h" style={{ top: '66.66%' }} />
                     <div className="crop-grid-v" style={{ left: '33.33%' }} />
                     <div className="crop-grid-v" style={{ left: '66.66%' }} />
 
-                    {/* 八把手 */}
                     <div className="crop-handle h-nw" onMouseDown={e => startDrag(e, 'nw')} onTouchStart={e => startDrag(e, 'nw')} />
                     <div className="crop-handle h-n" onMouseDown={e => startDrag(e, 'n')} onTouchStart={e => startDrag(e, 'n')} />
                     <div className="crop-handle h-ne" onMouseDown={e => startDrag(e, 'ne')} onTouchStart={e => startDrag(e, 'ne')} />

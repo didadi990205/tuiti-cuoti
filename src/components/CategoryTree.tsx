@@ -8,14 +8,12 @@ interface Props {
   categories: Category[]
   selected: string[]
   onToggle: (id: string) => void
-  /** æ˜¯å¦å…è®¸åœ¨æ ‘å†…å°±åœ°æ–°å¢åˆ†ç±»ï¼ˆä¸Šä¼ /ç¼–è¾‘åœºæ™¯ä¸º trueï¼Œç­›é€‰åœºæ™¯ä¸º falseï¼‰ */
   allowAdd?: boolean
-  /** ç‚¹å‡»åˆ†ç±»çš„è¡Œä¸ºï¼š'toggle' å¤šé€‰åˆ‡æ¢ï¼ˆé»˜è®¤ï¼‰ï¼Œ'select' å•é€‰è·³è½¬ï¼ˆæŠ½å±‰ç­›é€‰åœºæ™¯ï¼‰ */
   mode?: 'toggle' | 'select'
   onSelect?: (id: string) => void
 }
 
-// åˆ†ç±»æ ‘ï¼šä¸€çº§é»˜è®¤å±•å¼€ã€å¯æŠ˜å ï¼›ä¸€çº§+äºŒçº§å‡æ”¯æŒå¤šé€‰
+// ·ÖÀàÊ÷£ºÒ»¼¶Ä¬ÈÏÕ¹¿ª¡¢¿ÉÕÛµş£»Ò»¼¶+¶ş¼¶¾ùÖ§³Ö¶àÑ¡£¨´ø¸´Ñ¡¿ò£©
 export default function CategoryTree({
   categories,
   selected,
@@ -26,12 +24,9 @@ export default function CategoryTree({
 }: Props) {
   const data = useStore()
   const tree = buildCategoryTree(categories)
-  // é»˜è®¤å…¨éƒ¨å±•å¼€ä¸€çº§åˆ†ç±»
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(tree.map(n => n.category.id))
   )
-
-  // æ–°å»ºåˆ†ç±»çš„è¾“å…¥æ¡†çŠ¶æ€
   const [addingRoot, setAddingRoot] = useState(false)
   const [rootName, setRootName] = useState('')
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null)
@@ -53,24 +48,15 @@ export default function CategoryTree({
   }
 
   const handleClick = (id: string) => {
-    if (mode === 'select') {
-      onSelect?.(id)
-    } else {
-      onToggle(id)
-    }
+    if (mode === 'select') onSelect?.(id)
+    else onToggle(id)
   }
 
   const handleAddRoot = () => {
     const name = rootName.trim()
     if (!name) return
-    try {
-      store.addCategory(name)
-      setRootName('')
-      setAddingRoot(false)
-      setError('')
-    } catch (err) {
-      setError((err as Error).message)
-    }
+    try { store.addCategory(name); setRootName(''); setAddingRoot(false); setError('') }
+    catch (err) { setError((err as Error).message) }
   }
 
   const handleAddSub = (parentId: string) => {
@@ -81,17 +67,24 @@ export default function CategoryTree({
       setSubName('')
       setAddingSubFor(null)
       setError('')
-      // ç¡®ä¿çˆ¶çº§å±•å¼€
       setExpanded(prev => new Set(prev).add(parentId))
-    } catch (err) {
-      setError((err as Error).message)
-    }
+    } catch (err) { setError((err as Error).message) }
   }
+
+  const checkbox = (id: string, checked: boolean) => (
+    <input
+      type="checkbox"
+      className="ct-checkbox"
+      checked={checked}
+      onChange={e => { e.stopPropagation(); handleClick(id) }}
+      onClick={e => e.stopPropagation()}
+    />
+  )
 
   return (
     <div className="category-tree">
       {tree.length === 0 && !addingRoot && (
-        <div className="ct-empty">æš‚æ— åˆ†ç±»{allowAdd ? 'ï¼Œç‚¹å‡»ä¸‹æ–¹æŒ‰é’®æ–°å¢' : ''}</div>
+        <div className="ct-empty">ÔİÎŞ·ÖÀà{allowAdd ? '£¬µã»÷ÏÂ·½°´Å¥ĞÂÔö' : ''}</div>
       )}
 
       {tree.map(node => (
@@ -100,15 +93,13 @@ export default function CategoryTree({
             className={`ct-parent${selected.includes(node.category.id) ? ' active' : ''}`}
             onClick={() => handleClick(node.category.id)}
           >
+            {checkbox(node.category.id, selected.includes(node.category.id))}
             <button
               className="ct-expand"
               onClick={e => { e.stopPropagation(); toggleExpand(node.category.id) }}
-              aria-label={expanded.has(node.category.id) ? 'æŠ˜å ' : 'å±•å¼€'}
+              aria-label={expanded.has(node.category.id) ? 'ÕÛµş' : 'Õ¹¿ª'}
             >
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: expanded.has(node.category.id) ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded.has(node.category.id) ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
@@ -116,11 +107,8 @@ export default function CategoryTree({
             <span className="ct-name">{node.category.name}</span>
             <span className="ct-count">{getCount(node.category.id)}</span>
             {allowAdd && (
-              <button
-                className="ct-add-sub"
-                onClick={e => { e.stopPropagation(); setAddingSubFor(node.category.id); setSubName('') }}
-              >
-                +å­åˆ†ç±»
+              <button className="ct-add-sub" onClick={e => { e.stopPropagation(); setAddingSubFor(node.category.id); setSubName('') }}>
+                +×Ó·ÖÀà
               </button>
             )}
           </div>
@@ -130,7 +118,7 @@ export default function CategoryTree({
               <input
                 type="text"
                 className="input"
-                placeholder={`åœ¨ã€Œ${node.category.name}ã€ä¸‹æ–°å¢å­åˆ†ç±»`}
+                placeholder={`ÔÚ¡¸${node.category.name}¡¹ÏÂĞÂÔö×Ó·ÖÀà`}
                 value={subName}
                 autoFocus
                 onChange={e => setSubName(e.target.value)}
@@ -139,8 +127,8 @@ export default function CategoryTree({
                   if (e.key === 'Escape') { setAddingSubFor(null); setSubName('') }
                 }}
               />
-              <button className="btn btn-primary btn-sm" onClick={() => handleAddSub(node.category.id)}>æ·»åŠ </button>
-              <button className="btn btn-text btn-sm" onClick={() => { setAddingSubFor(null); setSubName('') }}>å–æ¶ˆ</button>
+              <button className="btn btn-primary btn-sm" onClick={() => handleAddSub(node.category.id)}>Ìí¼Ó</button>
+              <button className="btn btn-text btn-sm" onClick={() => { setAddingSubFor(null); setSubName('') }}>È¡Ïû</button>
             </div>
           )}
 
@@ -152,6 +140,7 @@ export default function CategoryTree({
                   className={`ct-child${selected.includes(child.category.id) ? ' active' : ''}`}
                   onClick={() => handleClick(child.category.id)}
                 >
+                  {checkbox(child.category.id, selected.includes(child.category.id))}
                   <span className="ct-dot small" style={{ background: child.category.color }} />
                   <span className="ct-name">{child.category.name}</span>
                   <span className="ct-count">{getCount(child.category.id)}</span>
@@ -161,7 +150,7 @@ export default function CategoryTree({
           )}
 
           {expanded.has(node.category.id) && allowAdd && node.children.length === 0 && !addingSubFor && (
-            <div className="ct-no-child">æš‚æ— å­åˆ†ç±»</div>
+            <div className="ct-no-child">ÔİÎŞ×Ó·ÖÀà</div>
           )}
         </div>
       ))}
@@ -173,7 +162,7 @@ export default function CategoryTree({
               <input
                 type="text"
                 className="input"
-                placeholder="è¾“å…¥ä¸€çº§åˆ†ç±»åç§°"
+                placeholder="ÊäÈëÒ»¼¶·ÖÀàÃû³Æ"
                 value={rootName}
                 autoFocus
                 onChange={e => setRootName(e.target.value)}
@@ -182,8 +171,8 @@ export default function CategoryTree({
                   if (e.key === 'Escape') { setAddingRoot(false); setRootName('') }
                 }}
               />
-              <button className="btn btn-primary btn-sm" onClick={handleAddRoot}>æ·»åŠ </button>
-              <button className="btn btn-text btn-sm" onClick={() => { setAddingRoot(false); setRootName('') }}>å–æ¶ˆ</button>
+              <button className="btn btn-primary btn-sm" onClick={handleAddRoot}>Ìí¼Ó</button>
+              <button className="btn btn-text btn-sm" onClick={() => { setAddingRoot(false); setRootName('') }}>È¡Ïû</button>
             </div>
           ) : (
             <button className="ct-add-root" onClick={() => setAddingRoot(true)}>
@@ -191,7 +180,7 @@ export default function CategoryTree({
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              æ–°å¢ä¸€çº§åˆ†ç±»
+              ĞÂÔöÒ»¼¶·ÖÀà
             </button>
           )}
         </>

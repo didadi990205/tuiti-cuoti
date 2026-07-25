@@ -6,6 +6,22 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <script>
+      // 版本号强制刷新：如果本地缓存版本不是当前版本，则刷新页面
+      (function () {
+        var CURRENT_VERSION = 'v2.3.0';
+        try {
+          var stored = localStorage.getItem('app-version');
+          if (stored !== CURRENT_VERSION) {
+            localStorage.setItem('app-version', CURRENT_VERSION);
+            if (stored) {
+              // 已存在旧版本记录，需要刷新一次加载最新代码
+              window.location.reload();
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="theme-color" content="#1677ff" />
     <meta name="description" content="行测错题复盘 - 自定义分类、手动裁剪、错题管理" />
     <title>行测错题复盘</title>

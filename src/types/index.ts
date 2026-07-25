@@ -1,5 +1,5 @@
-// 难度等级：简单/中等/困难
-export type Difficulty = 'easy' | 'medium' | 'hard'
+// 难度等级：1-5 星
+export type Difficulty = 1 | 2 | 3 | 4 | 5
 
 // 复盘状态：未复盘 / 1次复盘 / 多次复盘 / 已完全掌握
 export type ReviewStatus = 'pending' | 'once' | 'many' | 'mastered'
@@ -12,28 +12,22 @@ export interface Category {
   id: string
   name: string
   parentId: string | null
-  color: string // 分类颜色，用于图片中的彩色圆点
-  order: number // 拖拽排序，越小越靠前（同级内排序）
+  color: string
+  order: number
   createdAt: number
-}
-
-// 一级+二级分类组合选中状态（用于筛选/上传）
-export interface CategorySelection {
-  categoryId: string
-  subIds: string[] // 选中的二级分类（可空）
 }
 
 // 错题
 export interface Question {
   id: string
-  image: string // base64格式原图（压缩后）
-  imageThumb?: string // 缩略图（用于列表展示）
-  categoryIds: string[] // 绑定的所有分类ID（可同时包含一级+二级）
+  image: string
+  imageThumb?: string
+  categoryIds: string[]
   correctOption: CorrectOption
   difficulty: Difficulty
   reviewStatus: ReviewStatus
-  reviewCount: number // 复盘次数：0未复盘，1一次，>=2多次
-  remark: string // 统一复盘备注
+  reviewCount: number
+  remark: string
   createdAt: number
   updatedAt: number
 }
@@ -49,7 +43,6 @@ export interface Note {
   updatedAt: number
 }
 
-// 应用持久化数据结构
 export interface AppData {
   version: number
   categories: Category[]
@@ -57,7 +50,6 @@ export interface AppData {
   notes: Note[]
 }
 
-// 分类统计
 export interface CategoryStat {
   category: Category
   total: number
@@ -65,7 +57,9 @@ export interface CategoryStat {
   once: number
   many: number
   mastered: number
-  easy: number
-  medium: number
-  hard: number
+  oneStar: number
+  twoStar: number
+  threeStar: number
+  fourStar: number
+  fiveStar: number
 }

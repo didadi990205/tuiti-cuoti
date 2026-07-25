@@ -5,7 +5,8 @@ import { useStore } from '@/hooks/useStore'
 import { compressImage, readFileAsDataUrl } from '@/utils/image'
 import CropModal from './CropModal'
 import CategoryTree from './CategoryTree'
-import type { Difficulty, ReviewStatus, CorrectOption } from '@/types'
+import StarRating from './StarRating'
+import type { ReviewStatus, CorrectOption, Difficulty } from '@/types'
 
 interface Props {
   open: boolean
@@ -23,7 +24,7 @@ export default function UploadModal({ open, onClose }: Props) {
   const [showCrop, setShowCrop] = useState(false)
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [correctOption, setCorrectOption] = useState<CorrectOption>(null)
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [difficulty, setDifficulty] = useState<Difficulty>(3)
   const [reviewStatus, setReviewStatus] = useState<ReviewStatus>('pending')
   const [reviewCount, setReviewCount] = useState(0)
   const [remark, setRemark] = useState('')
@@ -39,7 +40,7 @@ export default function UploadModal({ open, onClose }: Props) {
     setShowCrop(false)
     setCategoryIds([])
     setCorrectOption(null)
-    setDifficulty('medium')
+    setDifficulty(3)
     setReviewStatus('pending')
     setReviewCount(0)
     setRemark('')
@@ -184,11 +185,7 @@ export default function UploadModal({ open, onClose }: Props) {
 
           <section className="upload-section">
             <div className="upload-section-title">难度</div>
-            <div className="upload-tag-row">
-              <button className={`tag-btn${difficulty === 'easy' ? ' active' : ''}`} onClick={() => setDifficulty('easy')}>简单</button>
-              <button className={`tag-btn${difficulty === 'medium' ? ' active' : ''}`} onClick={() => setDifficulty('medium')}>中等</button>
-              <button className={`tag-btn${difficulty === 'hard' ? ' active' : ''}`} onClick={() => setDifficulty('hard')}>困难</button>
-            </div>
+            <StarRating value={difficulty} onChange={(v) => setDifficulty(v as Difficulty)} size={28} />
           </section>
 
           <section className="upload-section">

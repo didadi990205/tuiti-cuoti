@@ -17,8 +17,6 @@ const STATUS_COLOR: Record<ReviewStatus, string> = {
   mastered: '#52c41a',
 }
 
-const DIFFICULTY_LABEL = { easy: '简单', medium: '中等', hard: '困难' }
-
 export default function StatsPage() {
   const data = useStore()
   const stats = useMemo(() => store.getCategoryStats(), [data])
@@ -31,9 +29,11 @@ export default function StatsPage() {
       once: q.filter(x => x.reviewStatus === 'once').length,
       many: q.filter(x => x.reviewStatus === 'many').length,
       mastered: q.filter(x => x.reviewStatus === 'mastered').length,
-      easy: q.filter(x => x.difficulty === 'easy').length,
-      medium: q.filter(x => x.difficulty === 'medium').length,
-      hard: q.filter(x => x.difficulty === 'hard').length,
+      oneStar: q.filter(x => x.difficulty === 1).length,
+      twoStar: q.filter(x => x.difficulty === 2).length,
+      threeStar: q.filter(x => x.difficulty === 3).length,
+      fourStar: q.filter(x => x.difficulty === 4).length,
+      fiveStar: q.filter(x => x.difficulty === 5).length,
     }
   }, [data])
 
@@ -116,9 +116,11 @@ export default function StatsPage() {
           <section className="stats-section">
             <h3 className="stats-section-title">难度分布</h3>
             <div className="stats-diff-bars">
-              <DiffBar label="简单" count={totals.easy} total={totals.total} color="#52c41a" />
-              <DiffBar label="中等" count={totals.medium} total={totals.total} color="#faad14" />
-              <DiffBar label="困难" count={totals.hard} total={totals.total} color="#f5222d" />
+              <DiffBar label="1星" count={totals.oneStar} total={totals.total} color="#faad14" />
+              <DiffBar label="2星" count={totals.twoStar} total={totals.total} color="#faad14" />
+              <DiffBar label="3星" count={totals.threeStar} total={totals.total} color="#faad14" />
+              <DiffBar label="4星" count={totals.fourStar} total={totals.total} color="#faad14" />
+              <DiffBar label="5星" count={totals.fiveStar} total={totals.total} color="#faad14" />
             </div>
           </section>
 
